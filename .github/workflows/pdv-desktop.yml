@@ -39,6 +39,7 @@ jobs:
             'agent/v3.js',
             'agent/v3-return.js',
             'agent/v3-enroll.js',
+            'agent/v3-profile-permissions.js',
             'renderer/app.js',
             'renderer/checkout-v3.js',
             'renderer/validation-v3.js'
