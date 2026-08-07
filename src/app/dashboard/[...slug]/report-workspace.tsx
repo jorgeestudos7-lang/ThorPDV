@@ -7,14 +7,7 @@ type Row = Record<string, unknown>;
 type Format = 'money'|'date'|'datetime'|'number'|'status'|'payment'|'boolean'|'json';
 type Column = { key:string; label:string; format?:Format };
 type Metric = { label:string; key?:string; count?:boolean; format?:Format };
-type Definition = {
-  title:string;
-  note?:string;
-  period?:boolean;
-  branch?:boolean;
-  columns:Column[];
-  metrics:Metric[];
-};
+type Definition = { title:string; note?:string; period?:boolean; branch?:boolean; columns:Column[]; metrics:Metric[] };
 
 const paymentLabels: Record<string,string> = {
   cash:'Dinheiro', pix:'PIX', debit_card:'Débito', credit_card:'Crédito', voucher:'Voucher',
@@ -75,15 +68,13 @@ export const reportDefinitions: Record<string,Definition> = {
     {key:'amount',label:'Valor',format:'money'},{key:'paid_amount',label:'Pago',format:'money'},{key:'open_amount',label:'Em aberto',format:'money'},{key:'paid_at',label:'Baixa',format:'datetime'}],
     metrics:[{label:'Títulos',count:true},{label:'Total',key:'amount',format:'money'},{label:'Em aberto',key:'open_amount',format:'money'}]},
   balance_sheet:{title:'Balanço Patrimonial Gerencial',period:false,note:'Visão operacional. Não substitui balanço contábil oficial por partidas dobradas.',columns:[
-    {key:'section',label:'Grupo'},{key:'account',label:'Conta / componente'},{key:'amount',label:'Valor',format:'money'}],
-    metrics:[{label:'Componentes',count:true}]},
+    {key:'section',label:'Grupo'},{key:'account',label:'Conta / componente'},{key:'amount',label:'Valor',format:'money'}],metrics:[{label:'Componentes',count:true}]},
   sales_cfop:{title:'Relatório de Vendas por CFOP',columns:[
     {key:'cfop',label:'CFOP'},{key:'sales_count',label:'Vendas',format:'number'},{key:'quantity',label:'Quantidade',format:'number'},{key:'revenue',label:'Faturamento',format:'money'}],
     metrics:[{label:'CFOPs',count:true},{label:'Vendas',key:'sales_count',format:'number'},{label:'Faturamento',key:'revenue',format:'money'}]},
   products_taxation:{title:'Relatório de Produtos por Tributação',period:false,branch:false,columns:[
     {key:'sku',label:'Código'},{key:'product',label:'Produto'},{key:'unit',label:'Un.'},{key:'ncm',label:'NCM'},{key:'cest',label:'CEST'},{key:'cfop',label:'CFOP'},{key:'origin',label:'Origem'},
-    {key:'icms',label:'CST/CSOSN ICMS'},{key:'pis',label:'PIS'},{key:'cofins',label:'COFINS'},{key:'ipi',label:'IPI'},{key:'active',label:'Ativo',format:'boolean'}],
-    metrics:[{label:'Produtos',count:true}]},
+    {key:'icms',label:'CST/CSOSN ICMS'},{key:'pis',label:'PIS'},{key:'cofins',label:'COFINS'},{key:'ipi',label:'IPI'},{key:'active',label:'Ativo',format:'boolean'}],metrics:[{label:'Produtos',count:true}]},
 };
 
 function formatValue(value: unknown, format?:Format) {
@@ -102,10 +93,8 @@ function sum(rows:Row[], key?:string) { return key ? rows.reduce((total,row)=>to
 
 export function ReportWorkspace({ report, branches, initial }: { report:string; branches:Row[]; initial:{ok?:boolean;error?:string;data?:Row[];start?:string;end?:string} }) {
   const def=reportDefinitions[report];
-  const today=new Date().toISOString().slice(0,10);
-  const fallbackStart=report==='product_ranking'?`${today.slice(0,8)}01`:new Date(Date.now()-30*86400000).toISOString().slice(0,10);
-  const [start,setStart]=useState(String(initial.start??fallbackStart));
-  const [end,setEnd]=useState(String(initial.end??today));
+  const [start,setStart]=useState(String(initial.start??''));
+  const [end,setEnd]=useState(String(initial.end??''));
   const [branch,setBranch]=useState('');
   const [rows,setRows]=useState<Row[]>(initial.data??[]);
   const [search,setSearch]=useState('');
@@ -114,7 +103,7 @@ export function ReportWorkspace({ report, branches, initial }: { report:string; 
   const visible=useMemo(()=>{const q=search.trim().toLowerCase();if(!q)return rows;return rows.filter(row=>Object.values(row).some(v=>String(v??'').toLowerCase().includes(q)));},[rows,search]);
 
   async function generate(){setLoading(true);const result=await erpReportV2(report,def.period===false?undefined:start,def.period===false?undefined:end,def.branch===false?undefined:branch);setLoading(false);if(result.ok){setRows(result.data??[]);setMessage(`Relatório atualizado: ${(result.data??[]).length} linha(s).`);}else setMessage(`Não foi possível gerar: ${String(result.error??'erro desconhecido')}`);}
-  function csv(){const lines=[def.columns.map(c=>`"${c.label}"`).join(';'),...visible.map(row=>def.columns.map(c=>`"${formatValue(row[c.key],c.format).replaceAll('"','""')}"`).join(';'))];const blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`thor-${report}-${today}.csv`;a.click();URL.revokeObjectURL(url);}
+  function csv(){const lines=[def.columns.map(c=>`"${c.label}"`).join(';'),...visible.map(row=>def.columns.map(c=>`"${formatValue(row[c.key],c.format).replaceAll('"','""')}"`).join(';'))];const blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`thor-${report}-${end||'relatorio'}.csv`;a.click();URL.revokeObjectURL(url);}
 
   return <div className="report-v2">
     <section className="erp-module-card report-v2-toolbar">
@@ -127,9 +116,7 @@ export function ReportWorkspace({ report, branches, initial }: { report:string; 
       {def.note&&<p className="report-v2-note">{def.note}</p>}
       {message&&<p className="erp-message">{message}</p>}
     </section>
-
     <section className="report-v2-metrics">{def.metrics.map((metric,i)=>{const value=metric.count?visible.length:sum(visible,metric.key);return <article key={i}><span>{metric.label}</span><strong>{metric.count?value:formatValue(value,metric.format)}</strong><small>{search?'resultado filtrado':'período selecionado'}</small></article>})}</section>
-
     <section className="erp-module-card report-v2-table-card"><div className="report-v2-title"><div><h2>{def.title}</h2><p>{visible.length} linha(s) exibida(s)</p></div></div><div className="erp-table-scroll"><table className="erp-data-table"><thead><tr>{def.columns.map(c=><th key={c.key}>{c.label}</th>)}</tr></thead><tbody>{visible.length===0?<tr><td className="erp-empty" colSpan={def.columns.length}>Nenhum dado encontrado para os filtros informados.</td></tr>:visible.map((row,index)=><tr key={String(row.id??`${report}-${index}`)}>{def.columns.map(c=><td key={c.key} className={c.format==='money'&&Number(row[c.key]??0)<0?'report-negative':''}>{formatValue(row[c.key],c.format)}</td>)}</tr>)}</tbody></table></div></section>
   </div>;
 }
