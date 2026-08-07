@@ -3,8 +3,10 @@ const fs = require('fs');
 const { app, BrowserWindow, ipcMain, safeStorage, dialog } = require('electron');
 const { ThorAgent } = require('./agent');
 const { installThorAgentV3 } = require('./agent/v3');
+const { installReturnFix } = require('./agent/v3-return');
 
 installThorAgentV3(ThorAgent);
+installReturnFix(ThorAgent);
 
 let mainWindow;
 let agent;
