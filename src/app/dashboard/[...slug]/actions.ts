@@ -31,11 +31,11 @@ export async function erpLoad(resource: string, search?: string) {
 export async function erpSave(resource: string, payload: Record<string, unknown>) {
   const token = await getSessionToken();
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc('erp_save', {
-    p_token: token,
-    p_resource: resource,
-    p_payload: payload,
-  });
+  const rpcName = resource === 'stock' ? 'erp_stock_move' : 'erp_save';
+  const rpcPayload = resource === 'stock'
+    ? { p_token: token, p_payload: payload }
+    : { p_token: token, p_resource: resource, p_payload: payload };
+  const { data, error } = await supabase.rpc(rpcName, rpcPayload);
   if (error) return { ok: false, error: error.message };
   return (data ?? { ok: false }) as RpcResult;
 }
