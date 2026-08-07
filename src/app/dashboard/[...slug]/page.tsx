@@ -9,6 +9,7 @@ import './reconciliation.css';
 import './cash.css';
 import './operator-admin.css';
 import './pdv-profile.css';
+import './product-workspace.css';
 import { ModuleClient } from './module-client';
 import { AdvancedShell } from './advanced-shell';
 import { InventoryClient, ReportsClient, StockTransferClient } from './advanced-clients';
@@ -23,8 +24,9 @@ import { ReconciliationWorkspace } from './reconciliation-workspace';
 import { CashWorkspace } from './cash-workspace';
 import { OperatorWorkspace } from './operator-workspace';
 import { PdvProfileWorkspace } from './pdv-profile-workspace';
+import { ProductWorkspace } from './product-workspace';
 import { reconciliationData } from './reconciliation-actions';
-import { erpFiscalSettingsGet, erpLoad } from './actions';
+import { erpFiscalSettingsGet, erpLoad, erpProductList } from './actions';
 
 const resourceBySlug: Record<string, string> = {
   'clientes': 'customers', 'clientes/novo': 'customers', 'fornecedores': 'suppliers',
@@ -50,6 +52,10 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
     erpLoad('profiles_pdv'), erpLoad('profiles_adm'), erpLoad('price_tables'), erpLoad('suppliers'),
   ]);
 
+  if (slug === 'produtos' || slug === 'produtos/novo') {
+    const productList = await erpProductList();
+    return <AdvancedShell title="Cadastro de Produtos" subtitle="Produtos integrados a preço, estoque, balança, vendas e fiscal." activePath="/dashboard/produtos"><ProductWorkspace initialProducts={productList.data} groups={groups.data} classes={classes.data}/></AdvancedShell>;
+  }
   if (slug === 'vendas/nova') return <AdvancedShell title="Nova Venda PDV" subtitle="Preço resolvido no servidor, baixa de estoque, pagamento, caixa e financeiro em uma única operação." activePath="/dashboard"><SaleWorkspace customers={customers.data} priceTables={priceTables.data}/></AdvancedShell>;
   if (slug === 'perfis-pdv') return <AdvancedShell title="Perfis de Usuário PDV" subtitle="Alçadas e permissões sincronizadas com os operadores do ThorPDV Desktop." activePath="/dashboard/perfis-pdv"><PdvProfileWorkspace initialProfiles={profilesPdv.data}/></AdvancedShell>;
   if (slug === 'usuarios-pdv') return <AdvancedShell title="Usuários PDV / Operadores" subtitle="Cadastre operadores, associe perfis e filiais e defina o PIN usado no ThorPDV Desktop." activePath="/dashboard/usuarios-pdv"><OperatorWorkspace initialUsers={initial.data} profiles={profilesPdv.data} branches={branches.data}/></AdvancedShell>;
