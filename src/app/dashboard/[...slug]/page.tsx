@@ -1,4 +1,5 @@
 import './module.css';
+import './advanced.css';
 import { ModuleClient } from './module-client';
 import { AdvancedShell } from './advanced-shell';
 import { CashClient, InventoryClient, PriceTablesClient, ReportsClient, StockTransferClient } from './advanced-clients';
