@@ -5,12 +5,14 @@ const { ThorAgent } = require('./agent');
 const { installThorAgentV3 } = require('./agent/v3');
 const { installReturnFix } = require('./agent/v3-return');
 const { installEnrollV3 } = require('./agent/v3-enroll');
+const { installDataConsistency } = require('./agent/consistency');
 const { installProfilePermissions } = require('./agent/v3-profile-permissions');
 const { installSyncRecovery } = require('./agent/recovery');
 
 installThorAgentV3(ThorAgent);
 installReturnFix(ThorAgent);
 installEnrollV3(ThorAgent);
+installDataConsistency(ThorAgent);
 installProfilePermissions(ThorAgent);
 installSyncRecovery(ThorAgent);
 
@@ -39,7 +41,7 @@ async function createWindow() {
     apiBase: process.env.THORPDV_API_URL || 'https://thorpdv.vercel.app',
     codec: codec(),
   });
-  agent.sync.appVersion = '0.3.2';
+  agent.sync.appVersion = '0.3.3';
   await agent.start();
 
   mainWindow = new BrowserWindow({
@@ -105,7 +107,7 @@ async function printSale(saleKey, type = 'pre_sale') {
 
 function registerIpc() {
   const handle = (name, fn) => ipcMain.handle(name, async (_event, ...args) => fn(...args));
-  handle('thor:status', async () => ({ ...(await agent.status()), appVersion: '0.3.2', operator: agent.currentOperator(), v3Settings: agent.v3Settings(), paymentIntegrations: agent.paymentIntegrations(), syncDiagnostics: agent.syncDiagnostics() }));
+  handle('thor:status', async () => ({ ...(await agent.status()), appVersion: '0.3.3', operator: agent.currentOperator(), v3Settings: agent.v3Settings(), paymentIntegrations: agent.paymentIntegrations(), syncDiagnostics: agent.syncDiagnostics() }));
   handle('thor:enroll', (payload) => agent.enroll(payload));
   handle('thor:sync', () => agent.manualSync());
   handle('thor:sync-diagnostics', () => agent.syncDiagnostics());
