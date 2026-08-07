@@ -6,16 +6,19 @@ import './promotion.css';
 import './organization.css';
 import './fiscal.css';
 import './reconciliation.css';
+import './cash.css';
 import { ModuleClient } from './module-client';
 import { AdvancedShell } from './advanced-shell';
-import { CashClient, InventoryClient, ReportsClient, StockTransferClient } from './advanced-clients';
+import { InventoryClient, ReportsClient, StockTransferClient } from './advanced-clients';
 import { PriceTableWorkspace } from './price-table-workspace';
+import { PriceAdjustmentWorkspace } from './price-adjustment-workspace';
 import { PromotionWorkspace } from './promotion-workspace';
 import { SaleWorkspace } from './sale-workspace';
 import { StockWorkspace } from './stock-workspace';
 import { OrganizationWorkspace } from './organization-workspace';
 import { FiscalWorkspace } from './fiscal-workspace';
 import { ReconciliationWorkspace } from './reconciliation-workspace';
+import { CashWorkspace } from './cash-workspace';
 import { reconciliationData } from './reconciliation-actions';
 import { erpFiscalSettingsGet, erpLoad } from './actions';
 
@@ -45,13 +48,14 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
 
   if (slug === 'vendas/nova') return <AdvancedShell title="Nova Venda PDV" subtitle="Preço resolvido no servidor, baixa de estoque, pagamento, caixa e financeiro em uma única operação." activePath="/dashboard"><SaleWorkspace customers={customers.data} priceTables={priceTables.data}/></AdvancedShell>;
   if (slug === 'promocoes') return <AdvancedShell title="Promoções" subtitle="Regras comerciais aplicadas automaticamente pelo motor de preço da venda." activePath="/dashboard/promocoes"><PromotionWorkspace initial={initial.data} products={products.data} groups={groups.data}/></AdvancedShell>;
+  if (slug === 'tabelas-precos/ajustes') return <AdvancedShell title="Ajustes Programados" subtitle="Agende aumentos/reduções e execute imediatamente quando necessário." activePath="/dashboard/tabelas-precos/ajustes"><PriceAdjustmentWorkspace initial={initial.data} priceTables={priceTables.data}/></AdvancedShell>;
   if (slug === 'estoque' || slug === 'estoque/nova') return <AdvancedShell title="Gestão de Estoque" subtitle="Entradas, saídas, perdas e ajustes com validação de saldo." activePath="/dashboard/estoque"><StockWorkspace products={products.data} history={initial.data}/></AdvancedShell>;
   if (slug === 'estoque/ajustes') return <AdvancedShell title="Ajustes de Estoque" subtitle="Correções de saldo com histórico e rastreabilidade." activePath="/dashboard/estoque/ajustes"><StockWorkspace products={products.data} history={initial.data} mode="adjustment"/></AdvancedShell>;
   if (slug === 'estoque/transferencias') return <AdvancedShell title="Transferências de Estoque" subtitle="Movimente produtos entre filiais com dupla escrituração de estoque." activePath="/dashboard/estoque/transferencias"><StockTransferClient products={products.data} branches={branches.data} history={initial.data}/></AdvancedShell>;
   if (slug === 'estoque/inventario') return <AdvancedShell title="Inventários" subtitle="Contagem física, diferenças e ajuste automático de estoque." activePath="/dashboard/estoque/inventario"><InventoryClient inventories={initial.data}/></AdvancedShell>;
   if (slug === 'tabelas-precos' || slug === 'tabelas-precos/copiar') return <AdvancedShell title={slug.endsWith('copiar')?'Copiar Tabela de Preços':'Gestão de Tabelas de Preços'} subtitle="Preços específicos por produto, vigência, edição e cópia integral de tabelas." activePath={`/dashboard/${slug}`}><PriceTableWorkspace initialTables={priceTables.data} products={products.data} copyMode={slug.endsWith('copiar')}/></AdvancedShell>;
   if (slug === 'administrativo/empresas') return <AdvancedShell title="Empresas e Filiais" subtitle="Estrutura empresarial compartilhada por estoque, vendas, caixa, fiscal e relatórios." activePath="/dashboard/administrativo/empresas"><OrganizationWorkspace initialCompanies={initial.data} initialBranches={branches.data}/></AdvancedShell>;
-  if (slug === 'pdv/caixa') return <AdvancedShell title="Caixa / PDV" subtitle="Abertura, vendas vinculadas e fechamento com valor esperado por terminal." activePath="/dashboard/administrativo/pdvs"><CashClient posRegisters={initial.data}/></AdvancedShell>;
+  if (slug === 'pdv/caixa') return <AdvancedShell title="Caixa / PDV" subtitle="Abertura, vendas vinculadas e fechamento com valor esperado e diferença por terminal." activePath="/dashboard/administrativo/pdvs"><CashWorkspace posRegisters={initial.data}/></AdvancedShell>;
   if (slug === 'fiscal' || slug === 'fiscal/nfe' || slug === 'fiscal/nfce') {
     const [settings, sales] = await Promise.all([erpFiscalSettingsGet(), erpLoad('sales')]);
     return <AdvancedShell title="Fiscal" subtitle="Validação e preparação de NF-e/NFC-e com transmissão bloqueada até configurar credenciais reais." activePath="/dashboard/fiscal"><FiscalWorkspace initialDocs={initial.data} sales={sales.data} settings={(settings.settings ?? {}) as Record<string, unknown>} preselect={slug.endsWith('nfce')?'nfce':'nfe'}/></AdvancedShell>;
