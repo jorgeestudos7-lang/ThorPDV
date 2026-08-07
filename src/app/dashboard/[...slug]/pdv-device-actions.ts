@@ -34,6 +34,17 @@ export async function pdvGenerateEnrollment(posRegisterId: string, label?: strin
   return (data ?? { ok: false, error: 'empty_response' }) as Record<string, unknown>;
 }
 
+export async function pdvReconnectDevice(deviceId: string) {
+  const pToken = await token();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('erp_pdv_device_reconnect', {
+    p_token: pToken,
+    p_device_id: deviceId,
+  });
+  if (error) return { ok: false, error: error.message };
+  return (data ?? { ok: false, error: 'empty_response' }) as Record<string, unknown>;
+}
+
 export async function pdvSetDeviceStatus(deviceId: string, status: 'offline' | 'blocked') {
   const pToken = await token();
   const supabase = await createClient();
