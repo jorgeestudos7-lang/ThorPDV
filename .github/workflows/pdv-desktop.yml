@@ -36,7 +36,9 @@ jobs:
             'agent/hardware.js',
             'agent/sync.js',
             'agent/index.js',
-            'renderer/app.js'
+            'agent/v3.js',
+            'renderer/app.js',
+            'renderer/checkout-v3.js'
           )
           foreach ($file in $files) {
             Write-Host "Checking $file"
