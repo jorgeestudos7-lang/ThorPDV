@@ -1,7 +1,10 @@
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { logout } from './actions';
+
+const SESSION_COOKIE = 'thorpdv_test_session';
 
 const modules = [
   ['Vendas hoje', 'R$ 0,00'],
@@ -26,7 +29,22 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) redirect('/login');
+  let displayIdentity = user?.email ?? 'Acesso de teste';
+
+  if (!user) {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(SESSION_COOKIE)?.value;
+
+    if (!token) redirect('/login');
+
+    const { data, error } = await supabase.rpc('temp_session_status', { p_token: token });
+    const status = data as { ok?: boolean; must_change_password?: boolean } | null;
+
+    if (error || !status?.ok) redirect('/login');
+    if (status.must_change_password) redirect('/change-password');
+
+    displayIdentity = 'Acesso temporário de testes';
+  }
 
   return (
     <main className="dashboard">
@@ -46,7 +64,7 @@ export default async function DashboardPage() {
           <div>
             <div className="muted">ThorPDV V1</div>
             <h1>Painel administrativo</h1>
-            <p className="muted">Conectado como {user.email}</p>
+            <p className="muted">Conectado como {displayIdentity}</p>
           </div>
           <form action={logout}>
             <button className="button secondary">Sair</button>
