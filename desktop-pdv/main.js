@@ -1,5 +1,6 @@
 const path = require('path');
-const { app, BrowserWindow, ipcMain, safeStorage } = require('electron');
+const fs = require('fs');
+const { app, BrowserWindow, ipcMain, safeStorage, dialog } = require('electron');
 const { ThorAgent } = require('./agent');
 
 let mainWindow;
@@ -47,6 +48,44 @@ async function createWindow() {
   await mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 }
 
+async function loadPrintable(doc) {
+  const win=new BrowserWindow({show:false,width:900,height:1200,webPreferences:{sandbox:true}});
+  if(doc.kind==='remote_pdf'){
+    if(!/^https?:\/\//i.test(doc.url||'')){ win.destroy(); throw new Error('nfce_pdf_url_unavailable'); }
+    await win.loadURL(doc.url);
+  } else {
+    await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(doc.html||`<pre>${doc.text||''}</pre>`)}`);
+  }
+  return win;
+}
+
+async function saveAsPdf(doc) {
+  const win=await loadPrintable(doc);
+  try{
+    const result=await dialog.showSaveDialog(mainWindow,{title:'Salvar documento como PDF',defaultPath:path.join(app.getPath('documents'),doc.filename||`ThorPDV-${Date.now()}.pdf`),filters:[{name:'Documento PDF',extensions:['pdf']}]});
+    if(result.canceled||!result.filePath) return {ok:false,cancelled:true};
+    const buffer=await win.webContents.printToPDF({printBackground:true,preferCSSPageSize:true});
+    fs.writeFileSync(result.filePath,buffer);
+    return {ok:true,target:'pdf',filePath:result.filePath};
+  } finally { win.destroy(); }
+}
+
+async function printRemotePdf(doc,printerName) {
+  const win=await loadPrintable(doc);
+  try{
+    return await new Promise((resolve,reject)=>win.webContents.print({silent:true,printBackground:true,deviceName:printerName},(success,reason)=>success?resolve({ok:true,target:printerName}):reject(new Error(reason||'print_failed'))));
+  } finally { win.destroy(); }
+}
+
+async function printSale(saleKey,type='pre_sale') {
+  const doc=agent.documentData(saleKey,type);
+  const target=agent.settings().printerName;
+  if(!target) throw new Error('printer_not_configured');
+  if(target==='__PDF__') return saveAsPdf(doc);
+  if(doc.kind==='remote_pdf') return printRemotePdf(doc,target);
+  return agent.printDocument(saleKey,type);
+}
+
 function registerIpc() {
   const handle = (name, fn) => ipcMain.handle(name, async (_event, ...args) => fn(...args));
   handle('thor:status', () => agent.status());
@@ -60,10 +99,17 @@ function registerIpc() {
   handle('thor:close-cash', (payload) => agent.closeCash(payload));
   handle('thor:finalize-sale', (payload) => agent.finalizeSale(payload));
   handle('thor:cancel-sale', (payload) => agent.cancelSale(payload));
+  handle('thor:return-sale', (payload) => agent.returnSale(payload));
+  handle('thor:request-nfce', (payload) => agent.requestNfce(payload));
+  handle('thor:fiscal-sales', (query) => agent.fiscalSales(query));
+  handle('thor:fiscal-sale', (key) => agent.fiscalSale(key));
   handle('thor:printers', () => agent.listPrinters());
   handle('thor:serial-ports', () => agent.listSerialPorts());
+  handle('thor:settings', () => agent.settings());
+  handle('thor:save-settings', (settings) => agent.saveSettings(settings));
   handle('thor:set-printer', (name) => agent.setPrinter(name));
-  handle('thor:print-last', () => agent.printLastReceipt());
+  handle('thor:print-sale', (saleKey,type) => printSale(saleKey,type));
+  handle('thor:print-last', () => printSale(null,'pre_sale'));
 }
 
 app.whenReady().then(async () => {
