@@ -1,0 +1,64 @@
+'use client';
+
+import { useMemo, useState, useTransition } from 'react';
+import { pdvDeviceList, pdvGenerateEnrollment, pdvSetDeviceStatus } from './pdv-device-actions';
+
+type Row = Record<string, unknown>;
+
+function text(value: unknown) { return value == null ? '' : String(value); }
+function when(value: unknown) { if (!value) return 'Nunca'; const d = new Date(String(value)); return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString('pt-BR'); }
+
+export function PdvDeviceWorkspace({ posRegisters, initialDevices }: { posRegisters: Row[]; initialDevices: Row[] }) {
+  const [devices, setDevices] = useState(initialDevices);
+  const [posId, setPosId] = useState(text(posRegisters[0]?.id));
+  const [label, setLabel] = useState('Caixa principal');
+  const [enrollment, setEnrollment] = useState<{ code?: string; expires_at?: string; pos_name?: string } | null>(null);
+  const [message, setMessage] = useState('');
+  const [pending, startTransition] = useTransition();
+  const online = useMemo(() => devices.filter((d) => text(d.status) === 'online').length, [devices]);
+
+  const refresh = () => startTransition(async () => {
+    const result = await pdvDeviceList();
+    if (result.ok) setDevices(result.data);
+  });
+
+  const generate = () => startTransition(async () => {
+    if (!posId) return setMessage('Cadastre ou selecione um caixa/PDV antes de gerar a ativação.');
+    setMessage('');
+    const result = await pdvGenerateEnrollment(posId, label);
+    if (!result.ok) return setMessage(text(result.error || 'Não foi possível gerar o código.'));
+    setEnrollment({ code: text(result.code), expires_at: text(result.expires_at), pos_name: text(result.pos_name) });
+  });
+
+  const setStatus = (id: string, status: 'offline'|'blocked') => startTransition(async () => {
+    const result = await pdvSetDeviceStatus(id, status);
+    if (!result.ok) setMessage(text(result.error || 'Não foi possível alterar o terminal.'));
+    await refresh();
+  });
+
+  return <div className="pdv-device-grid">
+    <section className="pdv-device-card pdv-device-activate">
+      <div className="pdv-device-title"><div><span className="pdv-device-kicker">Pareamento seguro</span><h2>Ativar ThorPDV Desktop</h2><p>Gere um código de uso único e informe no computador Windows que ficará no caixa.</p></div><div className="pdv-device-badge">API v1</div></div>
+      <div className="pdv-device-form">
+        <label><span>Caixa / PDV</span><select value={posId} onChange={(e)=>setPosId(e.target.value)}>{posRegisters.map((p)=><option key={text(p.id)} value={text(p.id)}>{text(p.name) || text(p.code) || 'PDV'}</option>)}</select></label>
+        <label><span>Identificação</span><input value={label} onChange={(e)=>setLabel(e.target.value)} placeholder="Ex.: Caixa 01 - Balcão" /></label>
+        <button type="button" className="pdv-device-primary" onClick={generate} disabled={pending}>{pending?'Gerando...':'Gerar código de ativação'}</button>
+      </div>
+      {enrollment?.code ? <div className="pdv-enrollment-code"><small>Código de ativação</small><strong>{enrollment.code}</strong><p>Use no ThorPDV Agent. Expira em {when(enrollment.expires_at)} e só pode ser usado uma vez.</p></div> : null}
+      {message ? <div className="pdv-device-message">{message}</div> : null}
+      <div className="pdv-device-flow"><span>1. Instalar Desktop</span><b>→</b><span>2. Informar código</span><b>→</b><span>3. Sincronizar catálogo</span><b>→</b><span>4. Abrir caixa</span></div>
+    </section>
+
+    <section className="pdv-device-card">
+      <div className="pdv-device-title"><div><span className="pdv-device-kicker">Monitoramento</span><h2>Terminais conectados</h2><p>{devices.length} terminal(is) pareado(s), {online} online agora.</p></div><button type="button" className="pdv-device-secondary" onClick={refresh} disabled={pending}>Atualizar</button></div>
+      <div className="pdv-device-table-wrap"><table className="pdv-device-table"><thead><tr><th>Terminal</th><th>PDV / Filial</th><th>Versão</th><th>Último contato</th><th>Status</th><th>Ações</th></tr></thead><tbody>
+        {devices.length===0 ? <tr><td colSpan={6}><div className="pdv-device-empty">Nenhum ThorPDV Desktop foi ativado ainda.</div></td></tr> : devices.map((d)=><tr key={text(d.id)}><td><strong>{text(d.name)}</strong><small>{text(d.hostname) || text(d.machine_id)}</small></td><td><strong>{text(d.pos_name)}</strong><small>{text(d.branch_name)}</small></td><td>{text(d.app_version) || '—'}</td><td>{when(d.last_seen_at)}</td><td><span className={`pdv-status pdv-${text(d.status)}`}>{text(d.status)==='online'?'Online':text(d.status)==='blocked'?'Bloqueado':'Offline'}</span></td><td><button type="button" className="pdv-device-link" onClick={()=>setStatus(text(d.id), text(d.status)==='blocked'?'offline':'blocked')}>{text(d.status)==='blocked'?'Desbloquear':'Bloquear'}</button></td></tr>)}
+      </tbody></table></div>
+    </section>
+
+    <section className="pdv-device-card pdv-device-info">
+      <h3>O que sincroniza</h3>
+      <div className="pdv-sync-capabilities"><div><b>↓ Gestão → PDV</b><span>Produtos, EAN/SKU, preços, promoções, clientes, estoque, filial e configuração.</span></div><div><b>↑ PDV → Gestão</b><span>Abertura/fechamento, vendas, pagamentos, sangria/suprimento, clientes e cancelamentos.</span></div><div><b>Offline-first</b><span>As operações ficam em fila local e sobem com idempotência quando a conexão volta.</span></div><div><b>Hardware local</b><span>Agente Windows para impressora térmica, balança, gaveta e periféricos.</span></div></div>
+    </section>
+  </div>;
+}
