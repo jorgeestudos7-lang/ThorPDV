@@ -10,6 +10,7 @@ import './cash.css';
 import './operator-admin.css';
 import './pdv-profile.css';
 import './product-workspace.css';
+import './branch-config.css';
 import { ModuleClient } from './module-client';
 import { AdvancedShell } from './advanced-shell';
 import { InventoryClient, ReportsClient, StockTransferClient } from './advanced-clients';
@@ -70,7 +71,7 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
   if (slug === 'estoque/transferencias') return <AdvancedShell title="Transferências de Estoque" subtitle="Movimente produtos entre filiais com dupla escrituração de estoque." activePath="/dashboard/estoque/transferencias"><StockTransferClient products={products.data} branches={branches.data} history={initial.data}/></AdvancedShell>;
   if (slug === 'estoque/inventario') return <AdvancedShell title="Inventários" subtitle="Contagem física, diferenças e ajuste automático de estoque." activePath="/dashboard/estoque/inventario"><InventoryClient inventories={initial.data}/></AdvancedShell>;
   if (slug === 'tabelas-precos' || slug === 'tabelas-precos/copiar') return <AdvancedShell title={slug.endsWith('copiar')?'Copiar Tabela de Preços':'Gestão de Tabelas de Preços'} subtitle="Preços específicos por produto, vigência, edição e cópia integral de tabelas." activePath={`/dashboard/${slug}`}><PriceTableWorkspace initialTables={priceTables.data} products={products.data} copyMode={slug.endsWith('copiar')}/></AdvancedShell>;
-  if (slug === 'administrativo/empresas') return <AdvancedShell title="Empresas e Filiais" subtitle="Estrutura empresarial compartilhada por estoque, vendas, caixa, fiscal e relatórios." activePath="/dashboard/administrativo/empresas"><OrganizationWorkspace initialCompanies={initial.data} initialBranches={branches.data}/></AdvancedShell>;
+  if (slug === 'administrativo/empresas') return <AdvancedShell title="Empresas e Filiais" subtitle="Cadastro completo por filial: Geral, terminais, fiscal, parâmetros, tributos, entrega, SmartPOS e histórico." activePath="/dashboard/administrativo/empresas"><OrganizationWorkspace initialCompanies={initial.data} initialBranches={branches.data}/></AdvancedShell>;
   if (slug === 'pdv/caixa') return <AdvancedShell title="Caixa / PDV" subtitle="Abertura, vendas vinculadas e fechamento com valor esperado e diferença por terminal." activePath="/dashboard/administrativo/pdvs"><CashWorkspace posRegisters={initial.data}/></AdvancedShell>;
   if (slug === 'fiscal' || slug === 'fiscal/nfe' || slug === 'fiscal/nfce') {
     const [settings, sales] = await Promise.all([erpFiscalSettingsGet(), erpLoad('sales')]);
