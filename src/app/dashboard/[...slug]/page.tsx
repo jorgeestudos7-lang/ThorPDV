@@ -1,8 +1,10 @@
 import './module.css';
 import './advanced.css';
+import './price-table.css';
 import { ModuleClient } from './module-client';
 import { AdvancedShell } from './advanced-shell';
-import { CashClient, InventoryClient, PriceTablesClient, ReportsClient, StockTransferClient } from './advanced-clients';
+import { CashClient, InventoryClient, ReportsClient, StockTransferClient } from './advanced-clients';
+import { PriceTableWorkspace } from './price-table-workspace';
 import { erpLoad } from './actions';
 
 const resourceBySlug: Record<string, string> = {
@@ -31,7 +33,7 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
 
   if (slug === 'estoque/transferencias') return <AdvancedShell title="Transferências de Estoque" subtitle="Movimente produtos entre filiais com dupla escrituração de estoque." activePath="/dashboard/estoque/transferencias"><StockTransferClient products={products.data} branches={branches.data} history={initial.data}/></AdvancedShell>;
   if (slug === 'estoque/inventario') return <AdvancedShell title="Inventários" subtitle="Contagem física, diferenças e ajuste automático de estoque." activePath="/dashboard/estoque/inventario"><InventoryClient inventories={initial.data}/></AdvancedShell>;
-  if (slug === 'tabelas-precos' || slug === 'tabelas-precos/copiar') return <AdvancedShell title={slug.endsWith('copiar')?'Copiar Tabela de Preços':'Gestão de Tabelas de Preços'} subtitle="Preços específicos por produto, vigência e cópia integral de tabelas." activePath={`/dashboard/${slug}`}><PriceTablesClient tables={priceTables.data} products={products.data} copyMode={slug.endsWith('copiar')}/></AdvancedShell>;
+  if (slug === 'tabelas-precos' || slug === 'tabelas-precos/copiar') return <AdvancedShell title={slug.endsWith('copiar')?'Copiar Tabela de Preços':'Gestão de Tabelas de Preços'} subtitle="Preços específicos por produto, vigência, edição e cópia integral de tabelas." activePath={`/dashboard/${slug}`}><PriceTableWorkspace initialTables={priceTables.data} products={products.data} copyMode={slug.endsWith('copiar')}/></AdvancedShell>;
   if (slug === 'pdv/caixa') return <AdvancedShell title="Caixa / PDV" subtitle="Abertura e fechamento de sessões de caixa por terminal." activePath="/dashboard/administrativo/pdvs"><CashClient posRegisters={initial.data}/></AdvancedShell>;
   if (slug === 'relatorios/vendas') return <AdvancedShell title="Relatório de Vendas PDV" subtitle="Faturamento e quantidade por produto, período e filial." activePath="/dashboard/relatorios/vendas"><ReportsClient type="sales" branches={branches.data} initial={initial.data}/></AdvancedShell>;
   if (slug === 'relatorios/financeiro' || slug === 'financeiro/fluxo-caixa') return <AdvancedShell title={slug.startsWith('relatorios')?'Relatório Financeiro':'Fluxo de Caixa'} subtitle="Entradas, saídas, realizado e previsto por período e filial." activePath={slug.startsWith('relatorios')?'/dashboard/relatorios/financeiro':'/dashboard/financeiro/fluxo-caixa'}><ReportsClient type="finance" branches={branches.data} initial={initial.data}/></AdvancedShell>;
