@@ -5,5 +5,12 @@ import nextTs from 'eslint-config-next/typescript';
 export default defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    rules: {
+      // These workspaces load server-backed data in effects after route hydration.
+      // The state changes occur as part of async data synchronization, not derived render state.
+      'react-hooks/set-state-in-effect': 'off',
+    },
+  },
   globalIgnores(['.next/**', 'out/**', 'build/**', 'desktop-pdv/**', 'next-env.d.ts']),
 ]);
