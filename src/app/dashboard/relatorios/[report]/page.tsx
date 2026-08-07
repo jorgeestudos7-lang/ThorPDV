@@ -22,7 +22,18 @@ const reports: Record<string,{type:string;title:string;subtitle:string}> = {
   'balanco-patrimonial':{type:'balance_sheet',title:'Balanço Patrimonial Gerencial',subtitle:'Visão operacional de caixa, bancos, recebíveis, estoques, obrigações e saldo patrimonial.'},
   'vendas-cfop':{type:'sales_cfop',title:'Relatório de Vendas por CFOP',subtitle:'Quantidade, vendas e faturamento agrupados pelo CFOP efetivamente usado na operação.'},
   'produtos-tributacao':{type:'products_taxation',title:'Relatório de Produtos por Tributação',subtitle:'NCM, CEST, CFOP, origem e enquadramentos tributários cadastrados nos produtos.'},
-  // Compatibilidade com URLs antigas
+
+  'dre-gerencial':{type:'dre_managerial',title:'DRE Gerencial',subtitle:'Receita, devoluções, descontos, CMV, lucro bruto, despesas e resultado operacional.'},
+  'margem-produto':{type:'product_margin',title:'Margem de Lucro por Produto',subtitle:'Receita, CMV, lucro bruto e margem percentual por produto.'},
+  'curva-abc':{type:'abc_curve',title:'Curva ABC de Produtos',subtitle:'Classificação A/B/C conforme participação acumulada no faturamento.'},
+  'cmv':{type:'cmv',title:'CMV',subtitle:'Custo das mercadorias vendidas, receita e lucro bruto por dia.'},
+  'lucro-bruto':{type:'gross_profit',title:'Lucro Bruto por Período',subtitle:'Receita líquida, CMV, lucro bruto e margem diária.'},
+  'vendas-horario':{type:'sales_timing',title:'Vendas por Hora / Dia da Semana',subtitle:'Identifique horários e dias de maior movimento e faturamento.'},
+  'ticket-medio':{type:'average_ticket',title:'Ticket Médio',subtitle:'Ticket médio diário por filial, com vendas, itens e faturamento.'},
+  'produtos-sem-giro':{type:'no_movement_products',title:'Produtos sem Giro',subtitle:'Produtos sem venda na janela selecionada, com estoque e valor imobilizado.'},
+  'estoque-parado':{type:'stagnant_stock',title:'Estoque Parado',subtitle:'Capital parado em produtos com saldo positivo e sem giro no período.'},
+  'comissao-vendedor':{type:'seller_commission',title:'Comissão por Vendedor',subtitle:'Base líquida, devoluções, percentual configurado e comissão calculada por operador.'},
+
   'vendas':{type:'product_ranking',title:'Relatório de Vendas por Produto',subtitle:'Produtos vendidos, quantidade e faturamento no período.'},
   'financeiro':{type:'cash_flow',title:'Relatório Financeiro / Fluxo de Caixa',subtitle:'Entradas, saídas e saldos financeiros por período.'},
   'listagens':{type:'products_taxation',title:'Listagem de Produtos',subtitle:'Produtos e principais dados fiscais cadastrados.'},
