@@ -4,13 +4,17 @@ const { Store } = require('./store');
 const { SyncEngine } = require('./sync');
 const hardware = require('./hardware');
 
+const APP_VERSION='0.2.0';
+
+function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
 class ThorAgent {
-  constructor({dataDir,apiBase,codec}){ this.store=new Store(dataDir); this.apiBase=apiBase; this.codec=codec; this.state={online:false,syncing:false}; this.sync=new SyncEngine({store:this.store,apiBase,tokenProvider:()=>this.deviceToken(),onState:(s)=>Object.assign(this.state,s)}); }
+  constructor({dataDir,apiBase,codec}){ this.store=new Store(dataDir); this.apiBase=apiBase; this.codec=codec; this.state={online:false,syncing:false}; this.sync=new SyncEngine({store:this.store,apiBase,tokenProvider:()=>this.deviceToken(),onState:(s)=>Object.assign(this.state,s),appVersion:APP_VERSION}); }
   deviceToken(){ return this.codec.decrypt(this.store.get('device_token')); }
   async start(){ if(this.deviceToken()) this.sync.start(); }
   async stop(){ this.sync.stop(); this.store.close(); }
-  async status(){ return { enrolled:Boolean(this.deviceToken()), online:this.state.online, syncing:this.state.syncing, context:JSON.parse(this.store.get('context','{}')||'{}'), queue:this.store.queueStats(), lastSyncAt:this.store.get('last_sync_at')||null, lastError:this.store.get('last_sync_error')||null, cashOpenEventId:this.store.get('cash_open_event_id')||null, printer:this.store.get('printer_name')||null, apiBase:this.apiBase }; }
-  async enroll({code,name}){ const body={code,machineId:hardware.machineId(),name:name||`ThorPDV - ${os.hostname()}`,hostname:os.hostname(),appVersion:'0.1.0',capabilities:{offline:true,printing:process.platform==='win32',serial:process.platform==='win32'}}; const response=await fetch(`${this.apiBase}/api/pdv/enroll`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}); const data=await response.json(); if(!response.ok||!data.ok) throw new Error(data.error||'enrollment_failed'); this.store.set('device_token',this.codec.encrypt(data.device_token)); this.store.set('device_id',data.device_id); this.sync.start(); await this.sync.run(); return this.status(); }
+  async status(){ const settings=this.store.settings(); return { enrolled:Boolean(this.deviceToken()), online:this.state.online, syncing:this.state.syncing, context:JSON.parse(this.store.get('context','{}')||'{}'), queue:this.store.queueStats(), lastSyncAt:this.store.get('last_sync_at')||null, lastError:this.store.get('last_sync_error')||null, cashOpenEventId:this.store.get('cash_open_event_id')||null, printer:settings.printerName||null, settings, appVersion:APP_VERSION, apiBase:this.apiBase }; }
+  async enroll({code,name}){ const body={code,machineId:hardware.machineId(),name:name||`ThorPDV - ${os.hostname()}`,hostname:os.hostname(),appVersion:APP_VERSION,capabilities:{offline:true,printing:process.platform==='win32',serial:process.platform==='win32',fiscalMenu:true,returns:true,pdf:true}}; const response=await fetch(`${this.apiBase}/api/pdv/enroll`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}); const data=await response.json(); if(!response.ok||!data.ok) throw new Error(data.error||'enrollment_failed'); this.store.set('device_token',this.codec.encrypt(data.device_token)); this.store.set('device_id',data.device_id); this.sync.start(); await this.sync.run(); return this.status(); }
   async syncNow(){ return this.sync.run(); }
   searchProducts(q){ return this.store.searchProducts(q); }
   searchCustomers(q){ return this.store.searchCustomers(q); }
@@ -37,14 +41,96 @@ class ThorAgent {
     const normalizedPayments=(payments||[]).map(p=>({method:p.method,amount:Number(p.amount||0),provider:p.provider||null,external_id:p.externalId||null,txid:p.txid||null,metadata:p.metadata||{}})); const paid=normalizedPayments.reduce((s,p)=>s+p.amount,0); if(paid>quote.total+0.01) throw new Error('payment_exceeds_total');
     const payload={cash_open_event_id:cashOpenEventId,customer_id:customerId||null,items:quote.items.map(i=>({product_id:i.productId,quantity:i.quantity,unit_price:i.unitPrice,discount:i.discount})),payments:normalizedPayments,discount:quote.discount,notes}; const event=this.event('sale_completed',payload);
     for(const i of quote.items) this.store.adjustInventory(i.productId,-i.quantity);
-    const receipt={eventId:event.id,items:quote.items.map(i=>({product_id:i.productId,quantity:i.quantity,unit_price:i.unitPrice,discount:i.discount,name:i.name,sku:i.sku,unit:i.unit})),subtotal:quote.subtotal,discount:quote.discount,total:quote.total,payments:normalizedPayments,customerId,createdAt:new Date().toISOString(),context:JSON.parse(this.store.get('context','{}')||'{}')}; this.store.saveReceipt(event.id,quote.total,receipt);
+    const receipt={eventId:event.id,items:quote.items.map(i=>({product_id:i.productId,quantity:i.quantity,unit_price:i.unitPrice,discount:i.discount,name:i.name,sku:i.sku,unit:i.unit,total:i.total})),subtotal:quote.subtotal,discount:quote.discount,total:quote.total,payments:normalizedPayments,customerId,createdAt:new Date().toISOString(),context:JSON.parse(this.store.get('context','{}')||'{}'),local_status:'pending_sync',returned_total:0}; this.store.saveReceipt(event.id,quote.total,receipt);
     return {ok:true,eventId:event.id,subtotal:quote.subtotal,total:quote.total,paid,receipt};
   }
-  async cancelSale({saleClientEventId,saleId=null,reason=''}){ return {ok:true,eventId:this.event('sale_cancel',{sale_client_event_id:saleClientEventId||null,sale_id:saleId||null,reason}).id}; }
+
+  fiscalSales(query=''){ return this.store.fiscalSales(query); }
+  fiscalSale(key){ const sale=this.store.fiscalSale(key); if(!sale) throw new Error('sale_not_found'); return sale; }
+
+  async cancelSale({saleKey,saleClientEventId=null,saleId=null,reason=''}){
+    const sale=saleKey?this.fiscalSale(saleKey):null;
+    const targetSaleId=saleId||sale?.id||null;
+    const targetEvent=saleClientEventId||sale?.client_event_id||null;
+    if(sale){
+      if(String(sale.status)==='cancelled'||String(sale.status)==='cancel_pending') throw new Error('sale_already_cancelled');
+      if(Number(sale.returned_total||0)>0) throw new Error('sale_has_returns');
+      if(sale.fiscal?.status==='authorized') throw new Error('authorized_fiscal_document_requires_fiscal_cancellation');
+      for(const i of sale.items||[]) if(i.product_id) this.store.adjustInventory(String(i.product_id),Number(i.quantity||0));
+      this.store.patchLocalSale(sale,{status:'cancel_pending',local_status:'cancel_pending'});
+    }
+    const e=this.event('sale_cancel',{sale_client_event_id:targetEvent,sale_id:targetSaleId,reason});
+    return {ok:true,eventId:e.id};
+  }
+
+  async returnSale({saleKey,items,refundMethod='cash',reason=''}){
+    const sale=this.fiscalSale(saleKey);
+    if(String(sale.status)==='cancelled'||String(sale.status)==='cancel_pending') throw new Error('sale_cancelled');
+    if(!Array.isArray(items)||!items.length) throw new Error('return_without_items');
+    const normalized=[];
+    let localValue=0;
+    for(const item of items){
+      const original=(sale.items||[]).find(i=>String(i.sale_item_id||i.product_id)===String(item.sale_item_id||item.product_id));
+      if(!original) throw new Error('sale_item_not_found');
+      const qty=Number(item.quantity||0); if(qty<=0) throw new Error('invalid_return_quantity');
+      const remaining=Math.max(Number(original.quantity||0)-Number(original.returned_quantity||0),0); if(qty>remaining+0.0001) throw new Error('return_quantity_exceeds_remaining');
+      const unitNet=Number(original.quantity||0)>0?Number(original.total??(Number(original.quantity||0)*Number(original.unit_price||0)))/Number(original.quantity||1):0;
+      localValue+=qty*unitNet;
+      normalized.push({sale_item_id:original.sale_item_id||null,product_id:original.product_id||null,quantity:qty});
+      if(original.product_id) this.store.adjustInventory(String(original.product_id),qty);
+    }
+    this.store.patchLocalSale(sale,{returned_total:Number(sale.returned_total||0)+Math.round(localValue*100)/100,local_status:'return_pending'});
+    const e=this.event('sale_return',{sale_id:sale.id||null,sale_client_event_id:sale.client_event_id||null,items:normalized,refund_method:refundMethod,reason});
+    return {ok:true,eventId:e.id,estimatedTotal:Math.round(localValue*100)/100};
+  }
+
+  async requestNfce({saleKey}){
+    const sale=this.fiscalSale(saleKey);
+    if(sale.fiscal?.status==='authorized') return {ok:true,alreadyAuthorized:true,fiscal:sale.fiscal};
+    const e=this.event('fiscal_nfce_request',{sale_id:sale.id||null,sale_client_event_id:sale.client_event_id||null});
+    this.store.patchLocalSale(sale,{fiscal:{...(sale.fiscal||{}),status:'requested'}});
+    return {ok:true,eventId:e.id,queued:true};
+  }
+
   async listPrinters(){ return hardware.listPrinters(); }
   async listSerialPorts(){ return hardware.listSerialPorts(); }
-  setPrinter(name){ this.store.set('printer_name',name||''); return {ok:true}; }
-  receiptText(receipt){ const r=receipt.payload||receipt; const lines=[]; lines.push('THORPDV'); lines.push(r.context?.company_name||''); lines.push(r.context?.branch_name||''); lines.push('------------------------------------------'); for(const i of r.items||[]) lines.push(`${i.quantity} x ${i.name}\n  ${i.unit_price.toFixed(2)} = ${(i.quantity*i.unit_price-i.discount).toFixed(2)}`); lines.push('------------------------------------------'); lines.push(`TOTAL: R$ ${Number(r.total||0).toFixed(2)}`); lines.push(`Data: ${new Date(r.createdAt||Date.now()).toLocaleString('pt-BR')}`); lines.push(`Evento: ${r.eventId||''}`); lines.push('\n\n'); return lines.join('\n'); }
-  async printLastReceipt(){ const r=this.store.lastReceipt(); if(!r) throw new Error('receipt_not_found'); await hardware.printText(this.store.get('printer_name'),this.receiptText(r)); return {ok:true}; }
+  settings(){ return this.store.settings(); }
+  saveSettings(input){ return this.store.saveSettings(input); }
+  setPrinter(name){ return this.store.saveSettings({printerName:name||''}); }
+
+  documentData(saleKey,type='pre_sale'){
+    let sale=saleKey?this.store.fiscalSale(saleKey):null;
+    if(!sale){ const r=this.store.lastReceipt(); if(r){ sale={id:r.server_sale_id||null,client_event_id:r.event_id,number:r.server_number||null,status:'completed',total:r.total,items:r.payload.items||[],payments:r.payload.payments||[],completed_at:r.payload.createdAt||r.created_at,created_at:r.created_at,context:r.payload.context||{},fiscal:r.payload.fiscal||null}; } }
+    if(!sale) throw new Error('receipt_not_found');
+    if(type==='nfce'){
+      if(sale.fiscal?.status!=='authorized') throw new Error('nfce_not_authorized');
+      if(!sale.fiscal?.pdf_path) throw new Error('nfce_pdf_unavailable');
+      return {kind:'remote_pdf',url:String(sale.fiscal.pdf_path),title:`NFC-e ${sale.fiscal.number||sale.number||''}`,filename:`NFCe-${sale.fiscal.number||sale.number||Date.now()}.pdf`,sale};
+    }
+    const context=sale.context||JSON.parse(this.store.get('context','{}')||'{}');
+    const lines=[];
+    lines.push('THORPDV'); lines.push(context.company_name||''); lines.push(context.branch_name||'');
+    lines.push('COMPROVANTE / PRE-VENDA - NAO FISCAL');
+    lines.push('------------------------------------------');
+    lines.push(`Venda: ${sale.number||sale.client_event_id||''}`);
+    for(const i of sale.items||[]){ const qty=Number(i.quantity||0),price=Number(i.unit_price||i.unitPrice||0),discount=Number(i.discount||0); lines.push(`${qty} x ${i.name||i.description||i.sku||'ITEM'}`); lines.push(`  ${price.toFixed(2)} = ${(qty*price-discount).toFixed(2)}`); }
+    lines.push('------------------------------------------');
+    lines.push(`TOTAL: R$ ${Number(sale.total||0).toFixed(2)}`);
+    const payments=(sale.payments||[]).map(p=>`${p.method}: R$ ${Number(p.amount||0).toFixed(2)}`); if(payments.length){lines.push('PAGAMENTO');lines.push(...payments);}
+    lines.push(`Data: ${new Date(sale.completed_at||sale.created_at||Date.now()).toLocaleString('pt-BR')}`);
+    lines.push('DOCUMENTO NAO FISCAL'); lines.push('\n\n');
+    const text=lines.join('\n');
+    const html=`<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Consolas,monospace;padding:24px;color:#111}pre{white-space:pre-wrap;font-size:12px;line-height:1.45}</style></head><body><pre>${escapeHtml(text)}</pre></body></html>`;
+    return {kind:'text',text,html,title:`Comprovante venda ${sale.number||''}`,filename:`ThorPDV-Venda-${sale.number||Date.now()}.pdf`,sale};
+  }
+
+  async printDocument(saleKey,type='pre_sale'){
+    const doc=this.documentData(saleKey,type);
+    if(doc.kind==='remote_pdf') throw new Error('remote_pdf_requires_ui');
+    const target=this.store.settings().printerName;
+    if(target==='__PDF__') throw new Error('pdf_requires_ui');
+    await hardware.printText(target,doc.text); return {ok:true,target};
+  }
+  async printLastReceipt(){ return this.printDocument(null,'pre_sale'); }
 }
-module.exports={ThorAgent};
+module.exports={ThorAgent,APP_VERSION};
