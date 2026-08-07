@@ -8,7 +8,7 @@ function installEnrollV3(ThorAgent) {
       machineId: hardware.machineId(),
       name: name || `ThorPDV - ${os.hostname()}`,
       hostname: os.hostname(),
-      appVersion: '0.3.4',
+      appVersion: '0.3.5',
       capabilities: {
         offline: true,
         printing: process.platform === 'win32',
@@ -26,6 +26,8 @@ function installEnrollV3(ThorAgent) {
         profilePermissions: true,
         stockConsistency: true,
         syncBackoff: true,
+        cashReconciliation: true,
+        cashCloseReceipt: true,
       },
     };
     const response = await fetch(`${this.apiBase}/api/pdv/enroll`, {
@@ -37,7 +39,7 @@ function installEnrollV3(ThorAgent) {
     if (!response.ok || !data.ok) throw new Error(data.error || 'enrollment_failed');
     this.store.set('device_token', this.codec.encrypt(data.device_token));
     this.store.set('device_id', data.device_id);
-    this.sync.appVersion = '0.3.4';
+    this.sync.appVersion = '0.3.5';
     this.sync.start();
     await this.sync.run(true);
     return this.status();
