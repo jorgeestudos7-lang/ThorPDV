@@ -11,7 +11,24 @@ const menu: [string, [string,string][]][] = [
   ['Estoque',[['Movimentações','/dashboard/estoque'],['Compras / Entradas','/dashboard/compras'],['Inventário','/dashboard/estoque/inventario'],['Ajustes','/dashboard/estoque/ajustes'],['Transferências','/dashboard/estoque/transferencias']]],
   ['Financeiro',[['Contas a Receber','/dashboard/financeiro/receber'],['Contas a Pagar','/dashboard/financeiro/pagar'],['Fluxo de Caixa','/dashboard/financeiro/fluxo-caixa'],['Conciliação','/dashboard/financeiro/conciliacao']]],
   ['Administrativo',[['Empresas e Filiais','/dashboard/administrativo/empresas'],['Caixas e PDVs','/dashboard/administrativo/pdvs'],['PDV Desktop / Agentes','/dashboard/administrativo/pdv-desktop'],['Fiscal','/dashboard/fiscal'],['Integrações','/dashboard/integracoes'],['Configurações','/dashboard/configuracoes']]],
-  ['Relatórios',[['Financeiro','/dashboard/relatorios/financeiro'],['Vendas PDV','/dashboard/relatorios/vendas'],['Estoque','/dashboard/relatorios/estoque'],['Listagens','/dashboard/relatorios/listagens']]],
+  ['Relatórios',[
+    ['Central de Relatórios','/dashboard/relatorios'],
+    ['Fechamento de Caixa','/dashboard/relatorios/fechamento-caixa'],
+    ['Fechamento Detalhado','/dashboard/relatorios/fechamento-caixa-detalhado'],
+    ['Relatório de Estoque','/dashboard/relatorios/estoque'],
+    ['Posição de Estoque','/dashboard/relatorios/posicao-estoque'],
+    ['Relatório de Inventário','/dashboard/relatorios/inventario'],
+    ['Ranking de Produtos','/dashboard/relatorios/ranking-produtos'],
+    ['Produtos × Forma Pagamento','/dashboard/relatorios/produtos-forma-pagamento'],
+    ['Vendedores / Operadores','/dashboard/relatorios/vendedores'],
+    ['Formas de Pagamento','/dashboard/relatorios/formas-pagamento'],
+    ['Demonstrativo Fluxo de Caixa','/dashboard/relatorios/fluxo-caixa'],
+    ['Contas a Receber','/dashboard/relatorios/contas-receber'],
+    ['Contas a Pagar','/dashboard/relatorios/contas-pagar'],
+    ['Balanço Patrimonial','/dashboard/relatorios/balanco-patrimonial'],
+    ['Vendas por CFOP','/dashboard/relatorios/vendas-cfop'],
+    ['Produtos por Tributação','/dashboard/relatorios/produtos-tributacao'],
+  ]],
 ];
 
 export function AdvancedShell({ title, subtitle, activePath, children }: { title:string; subtitle:string; activePath:string; children:ReactNode }) {
