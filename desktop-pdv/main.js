@@ -41,7 +41,10 @@ async function createWindow() {
     apiBase: process.env.THORPDV_API_URL || 'https://thorpdv.vercel.app',
     codec: codec(),
   });
-  agent.sync.appVersion = '0.3.3';
+  agent.sync.appVersion = '0.3.4';
+  // O terminal permanece pareado, mas nenhuma sessão de operador é herdada
+  // ao abrir o aplicativo. O PIN precisa ser informado em toda inicialização.
+  if (typeof agent.logoutOperator === 'function') agent.logoutOperator();
   await agent.start();
 
   mainWindow = new BrowserWindow({
@@ -107,7 +110,7 @@ async function printSale(saleKey, type = 'pre_sale') {
 
 function registerIpc() {
   const handle = (name, fn) => ipcMain.handle(name, async (_event, ...args) => fn(...args));
-  handle('thor:status', async () => ({ ...(await agent.status()), appVersion: '0.3.3', operator: agent.currentOperator(), v3Settings: agent.v3Settings(), paymentIntegrations: agent.paymentIntegrations(), syncDiagnostics: agent.syncDiagnostics() }));
+  handle('thor:status', async () => ({ ...(await agent.status()), appVersion: '0.3.4', operator: agent.currentOperator(), v3Settings: agent.v3Settings(), paymentIntegrations: agent.paymentIntegrations(), syncDiagnostics: agent.syncDiagnostics() }));
   handle('thor:enroll', (payload) => agent.enroll(payload));
   handle('thor:sync', () => agent.manualSync());
   handle('thor:sync-diagnostics', () => agent.syncDiagnostics());
