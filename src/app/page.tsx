@@ -1,17 +1,11 @@
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/server';
 
-export default async function Home() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
+export default function Home() {
   return (
     <main className="shell">
       <header className="header">
         <div className="brand">THOR<span>PDV</span></div>
-        <Link className="button secondary" href={user ? '/dashboard' : '/login'}>
-          {user ? 'Abrir painel' : 'Entrar'}
-        </Link>
+        <Link className="button secondary" href="/login">Entrar</Link>
       </header>
 
       <section className="hero">
@@ -22,9 +16,7 @@ export default async function Home() {
           múltiplas empresas, filiais, usuários, estoque, vendas e emissão fiscal.
         </p>
         <div>
-          <Link className="button" href={user ? '/dashboard' : '/login'}>
-            Começar agora
-          </Link>
+          <Link className="button" href="/login">Começar agora</Link>
         </div>
       </section>
     </main>
