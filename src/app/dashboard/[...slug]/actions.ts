@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 
 const SESSION_COOKIE = 'thorpdv_test_session';
 
-type RpcResult = { ok?: boolean; error?: string; data?: Record<string, unknown>[]; id?: string; [key: string]: unknown };
+type RpcResult = { ok?: boolean; error?: string; data?: Record<string, unknown>[] | Record<string, unknown>; id?: string; [key: string]: unknown };
 
 async function getSessionToken() {
   const cookieStore = await cookies();
@@ -41,9 +41,19 @@ export async function erpProductList(search?: string) {
   return { ok: Boolean(result.ok), error: result.error, data: Array.isArray(result.data) ? result.data : [], branch_id: result.branch_id };
 }
 
+export async function erpProductDetail(productId: string) {
+  const token = await getSessionToken();
+  return rpc('erp_product_detail', { p_token: token, p_product: productId });
+}
+
 export async function erpProductSave(payload: Record<string, unknown>) {
   const token = await getSessionToken();
-  return rpc('erp_product_save', { p_token: token, p_payload: payload });
+  return rpc('erp_product_save_v2', { p_token: token, p_payload: payload });
+}
+
+export async function erpProductCompositionSet(productId: string, items: Record<string, unknown>[]) {
+  const token = await getSessionToken();
+  return rpc('erp_product_composition_set', { p_token: token, p_product: productId, p_items: items });
 }
 
 export async function erpGenerateProductBarcode() {
@@ -63,6 +73,27 @@ export async function erpProductAddStock(productId: string, quantity: number, un
       notes: 'Entrada de estoque após cadastro do produto',
     },
   });
+}
+
+export async function erpProductionOrders(status?: string) {
+  const token = await getSessionToken();
+  const result = await rpc('erp_production_orders', { p_token: token, p_status: status || null });
+  return { ok: Boolean(result.ok), error: result.error, data: Array.isArray(result.data) ? result.data : [] };
+}
+
+export async function erpProductionOrderCreate(productId: string, quantity: number, notes?: string) {
+  const token = await getSessionToken();
+  return rpc('erp_production_order_create', { p_token: token, p_product: productId, p_quantity: quantity, p_notes: notes || null });
+}
+
+export async function erpProductionOrderComplete(orderId: string, quantity?: number) {
+  const token = await getSessionToken();
+  return rpc('erp_production_order_complete', { p_token: token, p_order: orderId, p_produced_quantity: quantity || null });
+}
+
+export async function erpProductionOrderCancel(orderId: string) {
+  const token = await getSessionToken();
+  return rpc('erp_production_order_cancel', { p_token: token, p_order: orderId });
 }
 
 export async function erpSaleCatalog(priceTableId?: string) {
