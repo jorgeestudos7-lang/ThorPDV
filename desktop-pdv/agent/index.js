@@ -41,7 +41,7 @@ class ThorAgent {
     const normalizedPayments=(payments||[]).map(p=>({method:p.method,amount:Number(p.amount||0),provider:p.provider||null,external_id:p.externalId||null,txid:p.txid||null,metadata:p.metadata||{}})); const paid=normalizedPayments.reduce((s,p)=>s+p.amount,0); if(paid>quote.total+0.01) throw new Error('payment_exceeds_total');
     const payload={cash_open_event_id:cashOpenEventId,customer_id:customerId||null,items:quote.items.map(i=>({product_id:i.productId,quantity:i.quantity,unit_price:i.unitPrice,discount:i.discount})),payments:normalizedPayments,discount:quote.discount,notes}; const event=this.event('sale_completed',payload);
     for(const i of quote.items) this.store.adjustInventory(i.productId,-i.quantity);
-    const receipt={eventId:event.id,items:quote.items.map(i=>({product_id:i.productId,quantity:i.quantity,unit_price:i.unitPrice,discount:i.discount,name:i.name,sku:i.sku,unit:i.unit,total:i.total})),subtotal:quote.subtotal,discount:quote.discount,total:quote.total,payments:normalizedPayments,customerId,createdAt:new Date().toISOString(),context:JSON.parse(this.store.get('context','{}')||'{}'),local_status:'pending_sync',returned_total:0}; this.store.saveReceipt(event.id,quote.total,receipt);
+    const receipt={eventId:event.id,items:quote.items.map(i=>({product_id:i.productId,quantity:i.quantity,returned_quantity:0,unit_price:i.unitPrice,discount:i.discount,name:i.name,sku:i.sku,unit:i.unit,total:i.total})),subtotal:quote.subtotal,discount:quote.discount,total:quote.total,payments:normalizedPayments,customerId,createdAt:new Date().toISOString(),context:JSON.parse(this.store.get('context','{}')||'{}'),local_status:'pending_sync',returned_total:0}; this.store.saveReceipt(event.id,quote.total,receipt);
     return {ok:true,eventId:event.id,subtotal:quote.subtotal,total:quote.total,paid,receipt};
   }
 
@@ -66,8 +66,10 @@ class ThorAgent {
   async returnSale({saleKey,items,refundMethod='cash',reason=''}){
     const sale=this.fiscalSale(saleKey);
     if(String(sale.status)==='cancelled'||String(sale.status)==='cancel_pending') throw new Error('sale_cancelled');
+    if(refundMethod==='cash'&&!this.store.get('cash_open_event_id')) throw new Error('cash_required_for_cash_refund');
     if(!Array.isArray(items)||!items.length) throw new Error('return_without_items');
     const normalized=[];
+    const increments=new Map();
     let localValue=0;
     for(const item of items){
       const original=(sale.items||[]).find(i=>String(i.sale_item_id||i.product_id)===String(item.sale_item_id||item.product_id));
@@ -76,10 +78,12 @@ class ThorAgent {
       const remaining=Math.max(Number(original.quantity||0)-Number(original.returned_quantity||0),0); if(qty>remaining+0.0001) throw new Error('return_quantity_exceeds_remaining');
       const unitNet=Number(original.quantity||0)>0?Number(original.total??(Number(original.quantity||0)*Number(original.unit_price||0)))/Number(original.quantity||1):0;
       localValue+=qty*unitNet;
+      const itemKey=String(original.sale_item_id||original.product_id); increments.set(itemKey,(increments.get(itemKey)||0)+qty);
       normalized.push({sale_item_id:original.sale_item_id||null,product_id:original.product_id||null,quantity:qty});
       if(original.product_id) this.store.adjustInventory(String(original.product_id),qty);
     }
-    this.store.patchLocalSale(sale,{returned_total:Number(sale.returned_total||0)+Math.round(localValue*100)/100,local_status:'return_pending'});
+    const patchedItems=(sale.items||[]).map(original=>{const itemKey=String(original.sale_item_id||original.product_id);return {...original,returned_quantity:Number(original.returned_quantity||0)+(increments.get(itemKey)||0)};});
+    this.store.patchLocalSale(sale,{returned_total:Number(sale.returned_total||0)+Math.round(localValue*100)/100,local_status:'return_pending',items:patchedItems});
     const e=this.event('sale_return',{sale_id:sale.id||null,sale_client_event_id:sale.client_event_id||null,items:normalized,refund_method:refundMethod,reason});
     return {ok:true,eventId:e.id,estimatedTotal:Math.round(localValue*100)/100};
   }
