@@ -26,6 +26,7 @@ import { OperatorWorkspace } from './operator-workspace';
 import { PdvProfileWorkspace } from './pdv-profile-workspace';
 import { ProductWorkspace } from './product-workspace';
 import { reconciliationData } from './reconciliation-actions';
+import { listPdvOperators } from './operator-actions';
 import { erpFiscalSettingsGet, erpLoad, erpProductList } from './actions';
 
 const resourceBySlug: Record<string, string> = {
@@ -58,7 +59,10 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
   }
   if (slug === 'vendas/nova') return <AdvancedShell title="Nova Venda PDV" subtitle="Preço resolvido no servidor, baixa de estoque, pagamento, caixa e financeiro em uma única operação." activePath="/dashboard"><SaleWorkspace customers={customers.data} priceTables={priceTables.data}/></AdvancedShell>;
   if (slug === 'perfis-pdv') return <AdvancedShell title="Perfis de Usuário PDV" subtitle="Alçadas e permissões sincronizadas com os operadores do ThorPDV Desktop." activePath="/dashboard/perfis-pdv"><PdvProfileWorkspace initialProfiles={profilesPdv.data}/></AdvancedShell>;
-  if (slug === 'usuarios-pdv') return <AdvancedShell title="Usuários PDV / Operadores" subtitle="Cadastre operadores, associe perfis e filiais e defina o PIN usado no ThorPDV Desktop." activePath="/dashboard/usuarios-pdv"><OperatorWorkspace initialUsers={initial.data} profiles={profilesPdv.data} branches={branches.data}/></AdvancedShell>;
+  if (slug === 'usuarios-pdv') {
+    const operators=await listPdvOperators();
+    return <AdvancedShell title="Usuários PDV / Operadores" subtitle="Cadastre operadores, associe perfis e filiais, defina PIN e comissão sobre vendas." activePath="/dashboard/usuarios-pdv"><OperatorWorkspace initialUsers={operators.data} profiles={profilesPdv.data} branches={branches.data}/></AdvancedShell>;
+  }
   if (slug === 'promocoes') return <AdvancedShell title="Promoções" subtitle="Regras comerciais aplicadas automaticamente pelo motor de preço da venda." activePath="/dashboard/promocoes"><PromotionWorkspace initial={initial.data} products={products.data} groups={groups.data}/></AdvancedShell>;
   if (slug === 'tabelas-precos/ajustes') return <AdvancedShell title="Ajustes Programados" subtitle="Agende aumentos/reduções e execute imediatamente quando necessário." activePath="/dashboard/tabelas-precos/ajustes"><PriceAdjustmentWorkspace initial={initial.data} priceTables={priceTables.data}/></AdvancedShell>;
   if (slug === 'estoque' || slug === 'estoque/nova') return <AdvancedShell title="Gestão de Estoque" subtitle="Entradas, saídas, perdas e ajustes com validação de saldo." activePath="/dashboard/estoque"><StockWorkspace products={products.data} history={initial.data}/></AdvancedShell>;
