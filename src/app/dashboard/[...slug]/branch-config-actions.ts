@@ -14,5 +14,6 @@ export async function branchConfigurationGet(branchId:string){return rpc('erp_br
 export async function branchConfigurationSave(branchId:string,section:string,payload:Record<string,unknown>){return rpc('erp_branch_configuration_save',{p_token:await token(),p_branch:branchId,p_section:section,p_payload:payload});}
 export async function branchPaymentIntegrationSave(branchId:string,payload:Record<string,unknown>){return rpc('erp_branch_payment_integration_save',{p_token:await token(),p_branch:branchId,p_payload:payload});}
 export async function branchSmartPosTerminalSave(branchId:string,payload:Record<string,unknown>){return rpc('erp_branch_smartpos_terminal_save',{p_token:await token(),p_branch:branchId,p_payload:payload});}
+export async function branchSmartPosEnrollment(branchId:string,provider:string,label?:string){return rpc('erp_smartpos_generate_enrollment',{p_token:await token(),p_branch:branchId,p_provider:provider,p_label:label||null});}
 export async function branchTaxGroupSave(branchId:string,payload:Record<string,unknown>){return rpc('erp_branch_tax_group_save',{p_token:await token(),p_branch:branchId,p_payload:payload});}
 export async function branchDeliveryRateSave(branchId:string,payload:Record<string,unknown>){return rpc('erp_branch_delivery_rate_save',{p_token:await token(),p_branch:branchId,p_payload:payload});}
