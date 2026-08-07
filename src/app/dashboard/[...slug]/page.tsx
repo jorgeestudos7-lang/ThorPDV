@@ -1,3 +1,4 @@
+import './module.css';
 import { ModuleClient } from './module-client';
 import { erpLoad } from './actions';
 
