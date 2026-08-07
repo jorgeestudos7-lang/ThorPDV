@@ -1,0 +1,43 @@
+{
+  "name": "thorpdv-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ThorPDV Desktop para Windows com agente offline-first",
+  "main": "main.js",
+  "scripts": {
+    "dev": "electron .",
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis",
+    "pack:win": "electron-builder --win dir"
+  },
+  "dependencies": {
+    "better-sqlite3": "latest"
+  },
+  "devDependencies": {
+    "electron": "latest",
+    "electron-builder": "latest"
+  },
+  "build": {
+    "appId": "br.com.thorpdv.desktop",
+    "productName": "ThorPDV Desktop",
+    "artifactName": "ThorPDV-Desktop-${version}-${arch}.${ext}",
+    "files": [
+      "main.js",
+      "preload.js",
+      "agent/**/*",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "npmRebuild": true,
+    "asar": true,
+    "win": {
+      "target": ["nsis"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
