@@ -20,10 +20,13 @@ function machineId() {
 }
 
 async function listPrinters() {
-  if (process.platform !== 'win32') return [];
+  const virtualPdf={Name:'__PDF__',DisplayName:'Salvar como PDF',DriverName:'ThorPDV PDF',PortName:'Arquivo PDF',PrinterStatus:'Ready',IsVirtual:true};
+  if (process.platform !== 'win32') return [virtualPdf];
   const out=await powershell("Get-Printer | Select-Object Name,DriverName,PortName,PrinterStatus | ConvertTo-Json -Compress");
-  if (!out) return [];
-  const parsed=JSON.parse(out); return Array.isArray(parsed)?parsed:[parsed];
+  if (!out) return [virtualPdf];
+  const parsed=JSON.parse(out);
+  const printers=(Array.isArray(parsed)?parsed:[parsed]).map(p=>({...p,DisplayName:p.Name,IsVirtual:false}));
+  return [virtualPdf,...printers];
 }
 
 async function listSerialPorts() {
@@ -34,6 +37,7 @@ async function listSerialPorts() {
 }
 
 async function printText(printerName,text) {
+  if (printerName==='__PDF__') throw new Error('pdf_requires_ui');
   if (process.platform !== 'win32') throw new Error('printing_requires_windows');
   if (!printerName) throw new Error('printer_not_configured');
   const file=path.join(os.tmpdir(),`thorpdv-${Date.now()}.txt`); fs.writeFileSync(file,text,'utf8');
