@@ -2,6 +2,14 @@ const path = require('path');
 const crypto = require('crypto');
 const Database = require('better-sqlite3');
 
+const DEFAULT_SHORTCUTS = {
+  cash: 'F7',
+  pix: 'F8',
+  debit_card: 'F9',
+  credit_card: 'F10',
+  voucher: 'F11',
+};
+
 class Store {
   constructor(dataDir) {
     this.db = new Database(path.join(dataDir, 'thorpdv-local.db'));
@@ -23,12 +31,36 @@ class Store {
       create table if not exists queue(id text primary key,type text not null,payload text not null,state text not null default 'pending',attempts integer not null default 0,last_error text,created_at text not null,updated_at text not null);
       create index if not exists idx_queue_state on queue(state,created_at);
       create table if not exists receipts(id text primary key,event_id text not null,total real not null,payload text not null,server_sale_id text,server_number text,created_at text not null);
+      create index if not exists idx_receipts_event on receipts(event_id);
+      create index if not exists idx_receipts_server_sale on receipts(server_sale_id);
+      create table if not exists server_sales(id text primary key,client_event_id text,number text,status text,total real not null default 0,payload text not null,created_at text not null,updated_at text not null);
+      create index if not exists idx_server_sales_number on server_sales(number);
+      create index if not exists idx_server_sales_event on server_sales(client_event_id);
     `);
   }
 
   close() { this.db.close(); }
   get(key, fallback = '') { const row = this.db.prepare('select value from settings where key=?').get(key); return row ? row.value : fallback; }
   set(key, value) { this.db.prepare('insert into settings(key,value) values(?,?) on conflict(key) do update set value=excluded.value').run(key, String(value ?? '')); }
+
+  settings() {
+    let shortcuts = { ...DEFAULT_SHORTCUTS };
+    try { shortcuts = { ...shortcuts, ...JSON.parse(this.get('payment_shortcuts', '{}') || '{}') }; } catch {}
+    return {
+      printerName: this.get('printer_name') || '',
+      printMode: this.get('print_mode', 'ask') || 'ask',
+      printDocument: this.get('print_document', 'ask') || 'ask',
+      shortcuts,
+    };
+  }
+
+  saveSettings(input = {}) {
+    if (Object.prototype.hasOwnProperty.call(input, 'printerName')) this.set('printer_name', input.printerName || '');
+    if (Object.prototype.hasOwnProperty.call(input, 'printMode')) this.set('print_mode', ['ask','direct','never'].includes(input.printMode) ? input.printMode : 'ask');
+    if (Object.prototype.hasOwnProperty.call(input, 'printDocument')) this.set('print_document', ['ask','pre_sale','nfce'].includes(input.printDocument) ? input.printDocument : 'ask');
+    if (input.shortcuts && typeof input.shortcuts === 'object') this.set('payment_shortcuts', JSON.stringify({ ...DEFAULT_SHORTCUTS, ...input.shortcuts }));
+    return this.settings();
+  }
 
   applyPull(data) {
     const tx = this.db.transaction(() => {
@@ -47,6 +79,12 @@ class Store {
       this.db.prepare('delete from promotions').run();
       const promoStmt = this.db.prepare('insert into promotions(id,name,rules,valid_from,valid_to,updated_at) values(?,?,?,?,?,?)');
       for (const p of data.promotions || []) promoStmt.run(p.id,p.name||'',JSON.stringify(p.rules||{}),p.valid_from||'',p.valid_to||'',p.updated_at||'');
+
+      const saleStmt = this.db.prepare(`insert into server_sales(id,client_event_id,number,status,total,payload,created_at,updated_at) values(@id,@client_event_id,@number,@status,@total,@payload,@created_at,@updated_at)
+        on conflict(id) do update set client_event_id=excluded.client_event_id,number=excluded.number,status=excluded.status,total=excluded.total,payload=excluded.payload,updated_at=excluded.updated_at`);
+      const now = new Date().toISOString();
+      for (const s of data.sales_history || []) saleStmt.run({ id:String(s.id), client_event_id:s.client_event_id?String(s.client_event_id):'', number:s.number==null?'':String(s.number), status:String(s.status||''), total:Number(s.total||0), payload:JSON.stringify(s), created_at:String(s.created_at||s.completed_at||now), updated_at:now });
+
       if (data.context) this.set('context', JSON.stringify(data.context));
       if (data.cursor) this.set('cursor', data.cursor);
     });
@@ -67,12 +105,74 @@ class Store {
 
   enqueue(event) { const now=new Date().toISOString(); this.db.prepare('insert into queue(id,type,payload,state,attempts,created_at,updated_at) values(?,?,?,\'pending\',0,?,?)').run(event.id,event.type,JSON.stringify(event.payload||{}),now,now); return event; }
   pending(limit=100) { return this.db.prepare(`select * from queue where state='pending' order by created_at,rowid limit ?`).all(limit).map((q)=>({ id:q.id,type:q.type,payload:JSON.parse(q.payload),attempts:q.attempts })); }
-  markProcessed(id,result) { this.db.prepare(`update queue set state='synced',last_error=null,updated_at=? where id=?`).run(new Date().toISOString(),id); if (result?.sale_id) this.db.prepare('update receipts set server_sale_id=?,server_number=? where event_id=?').run(result.sale_id,String(result.number||''),id); }
+  markProcessed(id,result) { this.db.prepare(`update queue set state='synced',last_error=null,updated_at=? where id=?`).run(new Date().toISOString(),id); if (result?.sale_id) this.db.prepare('update receipts set server_sale_id=coalesce(server_sale_id,?),server_number=case when ?<>\'\' then ? else server_number end where event_id=?').run(String(result.sale_id),String(result.number||''),String(result.number||''),id); }
   markRejected(id,error) { this.db.prepare(`update queue set state='rejected',attempts=attempts+1,last_error=?,updated_at=? where id=?`).run(String(error||'rejected'),new Date().toISOString(),id); }
   markRetry(id,error) { this.db.prepare(`update queue set attempts=attempts+1,last_error=?,updated_at=? where id=?`).run(String(error||'sync_error'),new Date().toISOString(),id); }
   queueStats() { return this.db.prepare(`select state,count(*) count from queue group by state`).all().reduce((a,r)=>(a[r.state]=r.count,a),{pending:0,rejected:0,synced:0}); }
+
   saveReceipt(eventId,total,payload) { const id=crypto.randomUUID(); this.db.prepare('insert into receipts(id,event_id,total,payload,created_at) values(?,?,?,?,?)').run(id,eventId,total,JSON.stringify(payload),new Date().toISOString()); this.set('last_receipt_id',id); return id; }
   lastReceipt() { const id=this.get('last_receipt_id'); const row=id?this.db.prepare('select * from receipts where id=?').get(id):null; return row?{...row,payload:JSON.parse(row.payload)}:null; }
+  receiptByEvent(eventId) { const row=this.db.prepare('select * from receipts where event_id=?').get(eventId); return row?{...row,payload:JSON.parse(row.payload)}:null; }
+
+  fiscalSales(query='') {
+    const q=String(query||'').trim().toLowerCase();
+    const serverRows=this.db.prepare('select * from server_sales order by datetime(created_at) desc limit 250').all().map(r=>JSON.parse(r.payload));
+    const byKey=new Map(serverRows.map(s=>[String(s.id),{...s,source:'server'}]));
+    const eventKeys=new Set(serverRows.map(s=>String(s.client_event_id||'')).filter(Boolean));
+    const localRows=this.db.prepare('select * from receipts order by datetime(created_at) desc limit 250').all();
+    for(const r of localRows){
+      if(r.server_sale_id && byKey.has(String(r.server_sale_id))) continue;
+      if(eventKeys.has(String(r.event_id))) continue;
+      const p=JSON.parse(r.payload||'{}');
+      byKey.set(`local:${r.event_id}`,{
+        id:r.server_sale_id||null,
+        local_key:`local:${r.event_id}`,
+        client_event_id:r.event_id,
+        number:r.server_number||null,
+        status:p.local_status||'pending_sync',
+        subtotal:p.subtotal||p.total||0,
+        discount:p.discount||0,
+        total:r.total,
+        created_at:r.created_at,
+        completed_at:p.createdAt||r.created_at,
+        customer_name:'',
+        items:p.items||[],
+        payments:p.payments||[],
+        fiscal:p.fiscal||null,
+        returned_total:Number(p.returned_total||0),
+        source:'local',
+      });
+    }
+    let rows=[...byKey.values()].sort((a,b)=>new Date(b.completed_at||b.created_at||0)-new Date(a.completed_at||a.created_at||0));
+    if(q) rows=rows.filter(s=>[s.number,s.customer_name,s.id,s.client_event_id,s.status,s.fiscal?.access_key].some(v=>String(v||'').toLowerCase().includes(q)));
+    return rows.slice(0,250);
+  }
+
+  fiscalSale(key) {
+    const k=String(key||'');
+    const server=this.db.prepare('select payload from server_sales where id=? or client_event_id=? or number=? limit 1').get(k,k,k);
+    if(server) return {...JSON.parse(server.payload),source:'server'};
+    const event=k.startsWith('local:')?k.slice(6):k;
+    const r=this.db.prepare('select * from receipts where event_id=? or id=? or server_sale_id=? or server_number=? limit 1').get(event,k,k,k);
+    if(!r) return null;
+    const p=JSON.parse(r.payload||'{}');
+    return {id:r.server_sale_id||null,local_key:`local:${r.event_id}`,client_event_id:r.event_id,number:r.server_number||null,status:p.local_status||'pending_sync',subtotal:p.subtotal||p.total||0,discount:p.discount||0,total:r.total,created_at:r.created_at,completed_at:p.createdAt||r.created_at,items:p.items||[],payments:p.payments||[],fiscal:p.fiscal||null,returned_total:Number(p.returned_total||0),source:'local'};
+  }
+
+  patchLocalSale(sale, patch) {
+    if(!sale) return;
+    if(sale.source==='local' || !sale.id){
+      const r=this.receiptByEvent(String(sale.client_event_id||''));
+      if(!r) return;
+      const payload={...r.payload,...patch};
+      this.db.prepare('update receipts set payload=? where event_id=?').run(JSON.stringify(payload),r.event_id);
+      return;
+    }
+    const row=this.db.prepare('select payload from server_sales where id=?').get(String(sale.id));
+    if(!row) return;
+    const payload={...JSON.parse(row.payload),...patch};
+    this.db.prepare('update server_sales set status=?,total=?,payload=?,updated_at=? where id=?').run(String(payload.status||sale.status||''),Number(payload.total||sale.total||0),JSON.stringify(payload),new Date().toISOString(),String(sale.id));
+  }
 }
 
-module.exports = { Store };
+module.exports = { Store, DEFAULT_SHORTCUTS };
