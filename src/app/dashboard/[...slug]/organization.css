@@ -1,0 +1,1 @@
+.erp-org-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.erp-org-wide{grid-column:1/-1}.erp-org-message{grid-column:1/-1;margin:0}.erp-org-grid .erp-advanced-panel{align-self:start}@media(max-width:900px){.erp-org-grid{grid-template-columns:1fr}.erp-org-wide,.erp-org-message{grid-column:auto}}
