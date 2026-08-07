@@ -45,7 +45,8 @@ jobs:
             'renderer/app.js',
             'renderer/checkout-v3.js',
             'renderer/validation-v3.js',
-            'renderer/sync-recovery.js'
+            'renderer/sync-recovery.js',
+            'renderer/operator-gate.js'
           )
           foreach ($file in $files) {
             Write-Host "Checking $file"
