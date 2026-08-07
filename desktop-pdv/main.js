@@ -2,6 +2,9 @@ const path = require('path');
 const fs = require('fs');
 const { app, BrowserWindow, ipcMain, safeStorage, dialog } = require('electron');
 const { ThorAgent } = require('./agent');
+const { installThorAgentV3 } = require('./agent/v3');
+
+installThorAgentV3(ThorAgent);
 
 let mainWindow;
 let agent;
@@ -28,6 +31,7 @@ async function createWindow() {
     apiBase: process.env.THORPDV_API_URL || 'https://thorpdv.vercel.app',
     codec: codec(),
   });
+  agent.sync.appVersion = '0.3.0';
   await agent.start();
 
   mainWindow = new BrowserWindow({
@@ -88,12 +92,17 @@ async function printSale(saleKey,type='pre_sale') {
 
 function registerIpc() {
   const handle = (name, fn) => ipcMain.handle(name, async (_event, ...args) => fn(...args));
-  handle('thor:status', () => agent.status());
+  handle('thor:status', async () => ({ ...(await agent.status()), appVersion:'0.3.0', operator:agent.currentOperator(), v3Settings:agent.v3Settings(), paymentIntegrations:agent.paymentIntegrations() }));
   handle('thor:enroll', (payload) => agent.enroll(payload));
   handle('thor:sync', () => agent.syncNow());
   handle('thor:search-products', (query) => agent.searchProducts(query));
   handle('thor:customers', (query) => agent.searchCustomers(query));
   handle('thor:quote-sale', (items, discount) => agent.quoteSale(items, discount));
+  handle('thor:quote-checkout', (payload) => agent.quoteCheckout(payload));
+  handle('thor:operators', () => agent.staffUsers());
+  handle('thor:operator-login', (payload) => agent.loginOperator(payload));
+  handle('thor:operator-logout', () => agent.logoutOperator());
+  handle('thor:supervisor-authorize', (payload) => agent.authorizeSupervisor(payload));
   handle('thor:open-cash', (payload) => agent.openCash(payload));
   handle('thor:cash-movement', (payload) => agent.cashMovement(payload));
   handle('thor:close-cash', (payload) => agent.closeCash(payload));
@@ -107,7 +116,13 @@ function registerIpc() {
   handle('thor:serial-ports', () => agent.listSerialPorts());
   handle('thor:settings', () => agent.settings());
   handle('thor:save-settings', (settings) => agent.saveSettings(settings));
+  handle('thor:v3-settings', () => agent.v3Settings());
+  handle('thor:save-v3-settings', (settings) => agent.saveV3Settings(settings));
   handle('thor:set-printer', (name) => agent.setPrinter(name));
+  handle('thor:open-drawer', () => agent.openDrawer());
+  handle('thor:read-scale', () => agent.readScale());
+  handle('thor:payment-integrations', () => agent.paymentIntegrations());
+  handle('thor:begin-payment', (payload) => agent.beginIntegratedPayment(payload));
   handle('thor:print-sale', (saleKey,type) => printSale(saleKey,type));
   handle('thor:print-last', () => printSale(null,'pre_sale'));
 }
