@@ -16,13 +16,13 @@ export default async function LoginPage({
         <Link href="/" className="brand">THOR<span>PDV</span></Link>
         <h1>Acesso de testes</h1>
         <p className="muted">
-          O e-mail de teste já está definido. Digite manualmente a senha temporária de 8 dígitos; o navegador não usará senha salva.
+          O e-mail de teste já está definido. Use a senha atual da conta. A senha temporária de 8 dígitos é usada somente no primeiro acesso ou após um reset.
         </p>
 
         {params.error ? <p className="error">{params.error}</p> : null}
         {params.message ? <p className="muted">{params.message}</p> : null}
 
-        <form className="form" autoComplete="off">
+        <form className="form">
           <div className="field">
             <label htmlFor="email">Email</label>
             <input
@@ -31,21 +31,18 @@ export default async function LoginPage({
               type="email"
               value={TEST_EMAIL}
               readOnly
-              autoComplete="off"
+              autoComplete="username"
               required
             />
           </div>
           <div className="field">
-            <label htmlFor="password">Senha temporária</label>
+            <label htmlFor="password">Senha</label>
             <input
               id="password"
               name="password"
               type="password"
-              autoComplete="off"
-              inputMode="numeric"
-              pattern="[0-9]{8}"
+              autoComplete="current-password"
               minLength={8}
-              maxLength={8}
               required
               autoFocus
             />
