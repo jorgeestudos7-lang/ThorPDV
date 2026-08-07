@@ -26,6 +26,24 @@ jobs:
           cache: npm
           cache-dependency-path: desktop-pdv/package.json
 
+      - name: Validate JavaScript syntax
+        shell: pwsh
+        run: |
+          $files = @(
+            'main.js',
+            'preload.js',
+            'agent/store.js',
+            'agent/hardware.js',
+            'agent/sync.js',
+            'agent/index.js',
+            'renderer/app.js'
+          )
+          foreach ($file in $files) {
+            Write-Host "Checking $file"
+            node --check $file
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
       - name: Install dependencies
         run: npm install
 
