@@ -5,6 +5,7 @@ import './sale.css';
 import './promotion.css';
 import './organization.css';
 import './fiscal.css';
+import './reconciliation.css';
 import { ModuleClient } from './module-client';
 import { AdvancedShell } from './advanced-shell';
 import { CashClient, InventoryClient, ReportsClient, StockTransferClient } from './advanced-clients';
@@ -14,6 +15,8 @@ import { SaleWorkspace } from './sale-workspace';
 import { StockWorkspace } from './stock-workspace';
 import { OrganizationWorkspace } from './organization-workspace';
 import { FiscalWorkspace } from './fiscal-workspace';
+import { ReconciliationWorkspace } from './reconciliation-workspace';
+import { reconciliationData } from './reconciliation-actions';
 import { erpFiscalSettingsGet, erpLoad } from './actions';
 
 const resourceBySlug: Record<string, string> = {
@@ -52,6 +55,10 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
   if (slug === 'fiscal' || slug === 'fiscal/nfe' || slug === 'fiscal/nfce') {
     const [settings, sales] = await Promise.all([erpFiscalSettingsGet(), erpLoad('sales')]);
     return <AdvancedShell title="Fiscal" subtitle="Validação e preparação de NF-e/NFC-e com transmissão bloqueada até configurar credenciais reais." activePath="/dashboard/fiscal"><FiscalWorkspace initialDocs={initial.data} sales={sales.data} settings={(settings.settings ?? {}) as Record<string, unknown>} preselect={slug.endsWith('nfce')?'nfce':'nfe'}/></AdvancedShell>;
+  }
+  if (slug === 'financeiro/conciliacao') {
+    const reconciliation = await reconciliationData();
+    return <AdvancedShell title="Conciliação Financeira" subtitle="Movimentos bancários conciliados com contas a receber/pagar e baixa automática dos títulos." activePath="/dashboard/financeiro/conciliacao"><ReconciliationWorkspace initial={reconciliation}/></AdvancedShell>;
   }
   if (slug === 'relatorios/vendas') return <AdvancedShell title="Relatório de Vendas PDV" subtitle="Faturamento e quantidade por produto, período e filial." activePath="/dashboard/relatorios/vendas"><ReportsClient type="sales" branches={branches.data} initial={initial.data}/></AdvancedShell>;
   if (slug === 'relatorios/financeiro' || slug === 'financeiro/fluxo-caixa') return <AdvancedShell title={slug.startsWith('relatorios')?'Relatório Financeiro':'Fluxo de Caixa'} subtitle="Entradas, saídas, realizado e previsto por período e filial." activePath={slug.startsWith('relatorios')?'/dashboard/relatorios/financeiro':'/dashboard/financeiro/fluxo-caixa'}><ReportsClient type="finance" branches={branches.data} initial={initial.data}/></AdvancedShell>;
