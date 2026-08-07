@@ -13,11 +13,23 @@ const groups = [
     ['Relatório de Estoque','/dashboard/relatorios/estoque','Histórico de todas as movimentações.'],
     ['Posição de Estoque','/dashboard/relatorios/posicao-estoque','Saldo atual, reserva, mínimo e valorização.'],
     ['Inventário','/dashboard/relatorios/inventario','Esperado, contado e diferenças.'],
+    ['Produtos sem Giro','/dashboard/relatorios/produtos-sem-giro','Produtos sem venda dentro da janela selecionada.'],
+    ['Estoque Parado','/dashboard/relatorios/estoque-parado','Capital imobilizado em produtos com saldo e sem giro.'],
   ]],
   ['Comercial',[
     ['Ranking de Produtos','/dashboard/relatorios/ranking-produtos','Produtos mais vendidos no período/mês.'],
     ['Produtos × Forma de Pagamento','/dashboard/relatorios/produtos-forma-pagamento','Rateio do faturamento por forma de pagamento.'],
     ['Vendedores / Operadores','/dashboard/relatorios/vendedores','Vendas, ticket, descontos e faturamento por operador.'],
+    ['Curva ABC','/dashboard/relatorios/curva-abc','Classificação A/B/C pela participação no faturamento.'],
+    ['Vendas por Hora / Dia','/dashboard/relatorios/vendas-horario','Horários e dias da semana de maior movimento.'],
+    ['Ticket Médio','/dashboard/relatorios/ticket-medio','Ticket médio diário por filial.'],
+    ['Comissão por Vendedor','/dashboard/relatorios/comissao-vendedor','Comissão calculada conforme percentual do operador.'],
+  ]],
+  ['Resultado / Rentabilidade',[
+    ['DRE Gerencial','/dashboard/relatorios/dre-gerencial','Receita líquida, CMV, lucro bruto, despesas e resultado.'],
+    ['Margem por Produto','/dashboard/relatorios/margem-produto','Receita, custo, lucro e margem por produto.'],
+    ['CMV','/dashboard/relatorios/cmv','Custo das mercadorias vendidas por dia.'],
+    ['Lucro Bruto','/dashboard/relatorios/lucro-bruto','Lucro bruto e margem ao longo do período.'],
   ]],
   ['Financeiro',[
     ['Demonstrativo de Fluxo de Caixa','/dashboard/relatorios/fluxo-caixa','Realizado, previsto, entradas e saídas.'],
@@ -32,7 +44,7 @@ const groups = [
 ] as const;
 
 export default function ReportsHub(){
-  return <AdvancedShell title="Central de Relatórios" subtitle="Relatórios integrados de caixa, estoque, vendas, financeiro e fiscal." activePath="/dashboard/relatorios">
+  return <AdvancedShell title="Central de Relatórios" subtitle="Relatórios integrados de caixa, estoque, vendas, rentabilidade, financeiro e fiscal." activePath="/dashboard/relatorios">
     <div className="reports-hub">{groups.map(([group,items])=><section className="erp-module-card reports-group" key={group}><div className="reports-group-head"><h2>{group}</h2><span>{items.length} relatório(s)</span></div><div className="reports-grid">{items.map(([title,href,desc])=><Link href={href} className="report-card" key={href}><div className="report-card-icon">▦</div><div><strong>{title}</strong><p>{desc}</p></div><span className="report-card-arrow">→</span></Link>)}</div></section>)}</div>
   </AdvancedShell>;
 }
