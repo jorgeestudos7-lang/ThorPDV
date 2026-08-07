@@ -1,50 +1,21 @@
 import './module.css';
 import { ModuleClient } from './module-client';
+import { AdvancedShell } from './advanced-shell';
+import { CashClient, InventoryClient, PriceTablesClient, ReportsClient, StockTransferClient } from './advanced-clients';
 import { erpLoad } from './actions';
 
 const resourceBySlug: Record<string, string> = {
-  'clientes': 'customers',
-  'clientes/novo': 'customers',
-  'fornecedores': 'suppliers',
-  'perfis-pdv': 'profiles_pdv',
-  'usuarios-pdv': 'users_pdv',
-  'perfis-adm': 'profiles_adm',
-  'usuarios-adm': 'users_adm',
-  'produtos': 'products',
-  'produtos/novo': 'products',
-  'grupos': 'groups',
-  'classes': 'classes',
-  'modificadores': 'modifiers',
-  'tabelas-precos': 'price_tables',
-  'tabelas-precos/copiar': 'price_tables',
-  'tabelas-precos/ajustes': 'price_adjustments',
-  'promocoes': 'promotions',
-  'estoque': 'stock',
-  'estoque/nova': 'stock',
-  'estoque/inventario': 'inventory_counts',
-  'estoque/ajustes': 'stock',
-  'estoque/transferencias': 'stock',
-  'financeiro/receber': 'finance',
-  'financeiro/receber/novo': 'finance',
-  'financeiro/pagar': 'finance',
-  'financeiro/pagar/novo': 'finance',
-  'financeiro/fluxo-caixa': 'report_finance',
-  'financeiro/conciliacao': 'finance',
-  'administrativo/empresas': 'companies',
-  'administrativo/pdvs': 'pos_registers',
-  'fiscal': 'fiscal_documents',
-  'integracoes': 'integrations',
-  'configuracoes': 'companies',
-  'relatorios/financeiro': 'report_finance',
-  'relatorios/vendas': 'report_sales',
-  'relatorios/estoque': 'report_stock',
-  'relatorios/listagens': 'products',
-  'atendimento': 'tickets',
-  'atendimento/mensagens': 'tickets',
-  'atendimento/sla': 'tickets',
-  'vendas/nova': 'sales',
-  'pdv/caixa': 'pos_registers',
-  'ajuda': 'companies',
+  'clientes': 'customers', 'clientes/novo': 'customers', 'fornecedores': 'suppliers',
+  'perfis-pdv': 'profiles_pdv', 'usuarios-pdv': 'users_pdv', 'perfis-adm': 'profiles_adm', 'usuarios-adm': 'users_adm',
+  'produtos': 'products', 'produtos/novo': 'products', 'grupos': 'groups', 'classes': 'classes', 'modificadores': 'modifiers',
+  'tabelas-precos': 'price_tables', 'tabelas-precos/copiar': 'price_tables', 'tabelas-precos/ajustes': 'price_adjustments', 'promocoes': 'promotions',
+  'estoque': 'stock', 'estoque/nova': 'stock', 'estoque/inventario': 'inventory_counts', 'estoque/ajustes': 'stock', 'estoque/transferencias': 'stock',
+  'financeiro/receber': 'finance', 'financeiro/receber/novo': 'finance', 'financeiro/pagar': 'finance', 'financeiro/pagar/novo': 'finance',
+  'financeiro/fluxo-caixa': 'report_finance', 'financeiro/conciliacao': 'finance',
+  'administrativo/empresas': 'companies', 'administrativo/pdvs': 'pos_registers', 'fiscal': 'fiscal_documents', 'integracoes': 'integrations', 'configuracoes': 'companies',
+  'relatorios/financeiro': 'report_finance', 'relatorios/vendas': 'report_sales', 'relatorios/estoque': 'report_stock', 'relatorios/listagens': 'products',
+  'atendimento': 'tickets', 'atendimento/mensagens': 'tickets', 'atendimento/sla': 'tickets',
+  'vendas/nova': 'sales', 'pdv/caixa': 'pos_registers', 'ajuda': 'companies',
 };
 
 export default async function ModulePage({ params }: { params: Promise<{ slug: string[] }> }) {
@@ -56,6 +27,14 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
     erpLoad('products'), erpLoad('customers'), erpLoad('groups'), erpLoad('classes'), erpLoad('branches'),
     erpLoad('profiles_pdv'), erpLoad('profiles_adm'), erpLoad('price_tables'), erpLoad('suppliers'),
   ]);
+
+  if (slug === 'estoque/transferencias') return <AdvancedShell title="Transferências de Estoque" subtitle="Movimente produtos entre filiais com dupla escrituração de estoque." activePath="/dashboard/estoque/transferencias"><StockTransferClient products={products.data} branches={branches.data} history={initial.data}/></AdvancedShell>;
+  if (slug === 'estoque/inventario') return <AdvancedShell title="Inventários" subtitle="Contagem física, diferenças e ajuste automático de estoque." activePath="/dashboard/estoque/inventario"><InventoryClient inventories={initial.data}/></AdvancedShell>;
+  if (slug === 'tabelas-precos' || slug === 'tabelas-precos/copiar') return <AdvancedShell title={slug.endsWith('copiar')?'Copiar Tabela de Preços':'Gestão de Tabelas de Preços'} subtitle="Preços específicos por produto, vigência e cópia integral de tabelas." activePath={`/dashboard/${slug}`}><PriceTablesClient tables={priceTables.data} products={products.data} copyMode={slug.endsWith('copiar')}/></AdvancedShell>;
+  if (slug === 'pdv/caixa') return <AdvancedShell title="Caixa / PDV" subtitle="Abertura e fechamento de sessões de caixa por terminal." activePath="/dashboard/administrativo/pdvs"><CashClient posRegisters={initial.data}/></AdvancedShell>;
+  if (slug === 'relatorios/vendas') return <AdvancedShell title="Relatório de Vendas PDV" subtitle="Faturamento e quantidade por produto, período e filial." activePath="/dashboard/relatorios/vendas"><ReportsClient type="sales" branches={branches.data} initial={initial.data}/></AdvancedShell>;
+  if (slug === 'relatorios/financeiro' || slug === 'financeiro/fluxo-caixa') return <AdvancedShell title={slug.startsWith('relatorios')?'Relatório Financeiro':'Fluxo de Caixa'} subtitle="Entradas, saídas, realizado e previsto por período e filial." activePath={slug.startsWith('relatorios')?'/dashboard/relatorios/financeiro':'/dashboard/financeiro/fluxo-caixa'}><ReportsClient type="finance" branches={branches.data} initial={initial.data}/></AdvancedShell>;
+  if (slug === 'relatorios/estoque') return <AdvancedShell title="Relatório de Estoque" subtitle="Saldo, estoque mínimo, custo e valor por filial." activePath="/dashboard/relatorios/estoque"><ReportsClient type="stock" branches={branches.data} initial={initial.data}/></AdvancedShell>;
 
   return <ModuleClient slug={slug} resource={resource} initialData={initial.data} lookups={{
     products: products.data, customers: customers.data, groups: groups.data, classes: classes.data, branches: branches.data,
