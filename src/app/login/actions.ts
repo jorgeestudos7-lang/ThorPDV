@@ -1,9 +1,10 @@
 'use server';
 
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://thorpdv.vercel.app';
+const SESSION_COOKIE = 'thorpdv_test_session';
 
 export async function login(formData: FormData) {
   const email = String(formData.get('email') ?? '').trim();
@@ -14,41 +15,37 @@ export async function login(formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.rpc('temp_login', {
+    p_email: email,
+    p_password: password,
+  });
 
-  if (error) {
-    redirect(`/login?error=${encodeURIComponent('Não foi possível entrar. Verifique suas credenciais.')}`);
+  const result = data as {
+    ok?: boolean;
+    error?: string;
+    session_token?: string;
+    must_change_password?: boolean;
+  } | null;
+
+  if (error || !result?.ok || !result.session_token) {
+    const message = result?.error === 'temporarily_locked'
+      ? 'Acesso temporariamente bloqueado após várias tentativas. Tente novamente em alguns minutos.'
+      : 'Email ou senha inválidos.';
+    redirect(`/login?error=${encodeURIComponent(message)}`);
+  }
+
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE, result.session_token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 8,
+  });
+
+  if (result.must_change_password) {
+    redirect('/change-password');
   }
 
   redirect('/dashboard');
-}
-
-export async function signup(formData: FormData) {
-  const email = String(formData.get('email') ?? '').trim();
-  const password = String(formData.get('password') ?? '');
-  const fullName = String(formData.get('fullName') ?? '').trim();
-
-  if (!email || password.length < 8) {
-    redirect('/login?error=Use%20um%20email%20válido%20e%20senha%20com%208%20ou%20mais%20caracteres');
-  }
-
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { full_name: fullName },
-      emailRedirectTo: `${APP_URL}/login`,
-    },
-  });
-
-  if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}`);
-  }
-
-  if (data.session) {
-    redirect('/dashboard');
-  }
-
-  redirect('/login?message=Conta%20criada.%20Confira%20seu%20email%20para%20confirmar%20o%20cadastro.');
 }
