@@ -6,6 +6,12 @@ import { setPdvOperatorPin } from './operator-actions';
 
 type Row=Record<string,unknown>;
 const text=(v:unknown)=>v==null?'':String(v);
+const permission=(value:unknown,section:string,key:string)=>{
+  if(!value||typeof value!=='object')return undefined;
+  const group=(value as Record<string,unknown>)[section];
+  if(!group||typeof group!=='object')return undefined;
+  return (group as Record<string,unknown>)[key];
+};
 
 export function OperatorWorkspace({initialUsers,profiles,branches}:{initialUsers:Row[];profiles:Row[];branches:Row[]}){
   const [users,setUsers]=useState(initialUsers);const [pending,startTransition]=useTransition();const [message,setMessage]=useState('');
@@ -32,6 +38,6 @@ export function OperatorWorkspace({initialUsers,profiles,branches}:{initialUsers
       <div className="operator-admin-head"><div><span>OPERADORES</span><h2>Usuários do caixa</h2><p>{users.length} usuário(s) PDV cadastrado(s).</p></div></div>
       <div className="operator-table-wrap"><table className="operator-table"><thead><tr><th>Nome</th><th>Perfil</th><th>Filial</th><th>Status</th><th>Ações</th></tr></thead><tbody>{users.map(u=><tr key={text(u.id)}><td><strong>{text(u.name)}</strong><small>{text(u.email)||'—'}</small></td><td>{text(u.profile)||'Sem perfil'}</td><td>{text(u.branch)||'Todas'}</td><td><span className={u.active===false?'op-inactive':'op-active'}>{u.active===false?'Inativo':'Ativo'}</span></td><td><div className="op-row-actions"><button onClick={()=>edit(u)}>Editar</button><button onClick={()=>quickPin(u)}>Definir PIN</button></div></td></tr>)}</tbody></table></div>
     </section>
-    <section className="operator-admin-card operator-permissions-card"><h3>Alçadas dos perfis</h3><div className="permission-cards">{profiles.map(p=>{const perms=(p.permissions??{}) as Record<string,any>;return <article key={text(p.id)}><strong>{text(p.name)}</strong><span>Desconto até {Number(perms?.discount?.max_percent??0)}%</span><span>Acréscimo até {Number(perms?.surcharge?.max_percent??0)}%</span><span>Cancelar venda: {perms?.sale?.cancel?'Sim':'Não'}</span><span>Devolver: {perms?.sale?.return?'Sim':'Não'}</span><span>Supervisor: {perms?.supervisor?.authorize?'Sim':'Não'}</span></article>})}</div></section>
+    <section className="operator-admin-card operator-permissions-card"><h3>Alçadas dos perfis</h3><div className="permission-cards">{profiles.map(p=>{const perms=p.permissions;return <article key={text(p.id)}><strong>{text(p.name)}</strong><span>Desconto até {Number(permission(perms,'discount','max_percent')??0)}%</span><span>Acréscimo até {Number(permission(perms,'surcharge','max_percent')??0)}%</span><span>Cancelar venda: {permission(perms,'sale','cancel')===true?'Sim':'Não'}</span><span>Devolver: {permission(perms,'sale','return')===true?'Sim':'Não'}</span><span>Supervisor: {permission(perms,'supervisor','authorize')===true?'Sim':'Não'}</span></article>})}</div></section>
   </div>;
 }
