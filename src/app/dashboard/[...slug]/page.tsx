@@ -1,10 +1,12 @@
 import './module.css';
 import './advanced.css';
 import './price-table.css';
+import './sale.css';
 import { ModuleClient } from './module-client';
 import { AdvancedShell } from './advanced-shell';
 import { CashClient, InventoryClient, ReportsClient, StockTransferClient } from './advanced-clients';
 import { PriceTableWorkspace } from './price-table-workspace';
+import { SaleWorkspace } from './sale-workspace';
 import { erpLoad } from './actions';
 
 const resourceBySlug: Record<string, string> = {
@@ -31,6 +33,7 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
     erpLoad('profiles_pdv'), erpLoad('profiles_adm'), erpLoad('price_tables'), erpLoad('suppliers'),
   ]);
 
+  if (slug === 'vendas/nova') return <AdvancedShell title="Nova Venda PDV" subtitle="Preço resolvido no servidor, baixa de estoque, pagamento e financeiro em uma única operação." activePath="/dashboard"><SaleWorkspace customers={customers.data} priceTables={priceTables.data}/></AdvancedShell>;
   if (slug === 'estoque/transferencias') return <AdvancedShell title="Transferências de Estoque" subtitle="Movimente produtos entre filiais com dupla escrituração de estoque." activePath="/dashboard/estoque/transferencias"><StockTransferClient products={products.data} branches={branches.data} history={initial.data}/></AdvancedShell>;
   if (slug === 'estoque/inventario') return <AdvancedShell title="Inventários" subtitle="Contagem física, diferenças e ajuste automático de estoque." activePath="/dashboard/estoque/inventario"><InventoryClient inventories={initial.data}/></AdvancedShell>;
   if (slug === 'tabelas-precos' || slug === 'tabelas-precos/copiar') return <AdvancedShell title={slug.endsWith('copiar')?'Copiar Tabela de Preços':'Gestão de Tabelas de Preços'} subtitle="Preços específicos por produto, vigência, edição e cópia integral de tabelas." activePath={`/dashboard/${slug}`}><PriceTableWorkspace initialTables={priceTables.data} products={products.data} copyMode={slug.endsWith('copiar')}/></AdvancedShell>;
