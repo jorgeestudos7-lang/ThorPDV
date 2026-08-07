@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { logout } from './actions';
@@ -7,6 +8,18 @@ const modules = [
   ['Pedidos', '0'],
   ['Produtos', '0'],
   ['Estoque crítico', '0'],
+];
+
+const navigation = [
+  ['Dashboard', '/dashboard'],
+  ['Vendas', '/dashboard'],
+  ['Produtos', '/dashboard'],
+  ['Estoque', '/dashboard'],
+  ['Clientes', '/dashboard'],
+  ['Fornecedores', '/dashboard'],
+  ['Financeiro', '/dashboard'],
+  ['Fiscal', '/dashboard'],
+  ['Configurações', '/dashboard'],
 ];
 
 export default async function DashboardPage() {
@@ -20,15 +33,11 @@ export default async function DashboardPage() {
       <aside className="sidebar">
         <div className="brand">THOR<span>PDV</span></div>
         <nav className="nav">
-          <a className="active" href="/dashboard">Dashboard</a>
-          <a href="#">Vendas</a>
-          <a href="#">Produtos</a>
-          <a href="#">Estoque</a>
-          <a href="#">Clientes</a>
-          <a href="#">Fornecedores</a>
-          <a href="#">Financeiro</a>
-          <a href="#">Fiscal</a>
-          <a href="#">Configurações</a>
+          {navigation.map(([label, href], index) => (
+            <Link className={index === 0 ? 'active' : undefined} href={href} key={label}>
+              {label}
+            </Link>
+          ))}
         </nav>
       </aside>
 
