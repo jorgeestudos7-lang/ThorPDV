@@ -108,3 +108,23 @@ export async function erpReport(report: 'sales'|'finance'|'stock', start?: strin
   });
   return { ok: Boolean(result.ok), error: result.error, data: Array.isArray(result.data) ? result.data : [], start: result.start, end: result.end };
 }
+
+export async function erpFiscalSettingsGet() {
+  const token = await getSessionToken();
+  return rpc('erp_fiscal_settings_get', { p_token: token });
+}
+
+export async function erpFiscalSettingsSave(payload: Record<string, unknown>) {
+  const token = await getSessionToken();
+  return rpc('erp_fiscal_settings_save', { p_token: token, p_payload: payload });
+}
+
+export async function erpFiscalPrepare(saleId: string, documentType: 'nfe'|'nfce') {
+  const token = await getSessionToken();
+  return rpc('erp_fiscal_prepare', { p_token: token, p_sale_id: saleId, p_document_type: documentType });
+}
+
+export async function erpFiscalSend(documentId: string) {
+  const token = await getSessionToken();
+  return rpc('erp_fiscal_send', { p_token: token, p_document_id: documentId });
+}
