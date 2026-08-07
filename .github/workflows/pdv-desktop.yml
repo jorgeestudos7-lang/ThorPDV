@@ -42,11 +42,13 @@ jobs:
             'agent/v3-profile-permissions.js',
             'agent/recovery.js',
             'agent/consistency.js',
+            'agent/cash-closing.js',
             'renderer/app.js',
             'renderer/checkout-v3.js',
             'renderer/validation-v3.js',
             'renderer/sync-recovery.js',
-            'renderer/operator-gate.js'
+            'renderer/operator-gate.js',
+            'renderer/cash-closing.js'
           )
           foreach ($file in $files) {
             Write-Host "Checking $file"
