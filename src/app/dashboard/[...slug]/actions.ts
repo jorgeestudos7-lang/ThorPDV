@@ -35,6 +35,12 @@ export async function erpSave(resource: string, payload: Record<string, unknown>
     : rpc('erp_save', { p_token: token, p_resource: resource, p_payload: payload });
 }
 
+export async function erpSaleCatalog(priceTableId?: string) {
+  const token = await getSessionToken();
+  const result = await rpc('erp_sale_catalog', { p_token: token, p_price_table_id: priceTableId || null });
+  return { ok: Boolean(result.ok), error: result.error, price_table_id: result.price_table_id, data: Array.isArray(result.data) ? result.data : [] };
+}
+
 export async function erpCreateSale(payload: Record<string, unknown>) {
   const token = await getSessionToken();
   return rpc('erp_create_sale', { p_token: token, p_payload: payload });
