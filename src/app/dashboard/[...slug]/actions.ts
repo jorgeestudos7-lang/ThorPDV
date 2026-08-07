@@ -35,6 +35,36 @@ export async function erpSave(resource: string, payload: Record<string, unknown>
     : rpc('erp_save', { p_token: token, p_resource: resource, p_payload: payload });
 }
 
+export async function erpProductList(search?: string) {
+  const token = await getSessionToken();
+  const result = await rpc('erp_product_list', { p_token: token, p_search: search?.trim() || null });
+  return { ok: Boolean(result.ok), error: result.error, data: Array.isArray(result.data) ? result.data : [], branch_id: result.branch_id };
+}
+
+export async function erpProductSave(payload: Record<string, unknown>) {
+  const token = await getSessionToken();
+  return rpc('erp_product_save', { p_token: token, p_payload: payload });
+}
+
+export async function erpGenerateProductBarcode() {
+  const token = await getSessionToken();
+  return rpc('erp_generate_product_barcode', { p_token: token });
+}
+
+export async function erpProductAddStock(productId: string, quantity: number, unitCost?: number) {
+  const token = await getSessionToken();
+  return rpc('erp_stock_move', {
+    p_token: token,
+    p_payload: {
+      product_id: productId,
+      movement_type: 'in',
+      quantity,
+      unit_cost: unitCost ?? null,
+      notes: 'Entrada de estoque após cadastro do produto',
+    },
+  });
+}
+
 export async function erpSaleCatalog(priceTableId?: string) {
   const token = await getSessionToken();
   const result = await rpc('erp_sale_catalog', { p_token: token, p_price_table_id: priceTableId || null });
