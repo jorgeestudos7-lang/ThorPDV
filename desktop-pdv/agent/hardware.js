@@ -47,4 +47,47 @@ async function printText(printerName,text) {
   return true;
 }
 
-module.exports={ machineId,listPrinters,listSerialPorts,printText };
+function rawPrinterScript(printerName, base64) {
+  const q=(s)=>String(s).replace(/'/g,"''");
+  return `$src=@'
+using System;
+using System.Runtime.InteropServices;
+public class ThorRawPrinter {
+ [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Ansi)] public class DOCINFOA { [MarshalAs(UnmanagedType.LPStr)] public string pDocName; [MarshalAs(UnmanagedType.LPStr)] public string pOutputFile; [MarshalAs(UnmanagedType.LPStr)] public string pDataType; }
+ [DllImport("winspool.Drv", EntryPoint="OpenPrinterA", SetLastError=true, CharSet=CharSet.Ansi, ExactSpelling=true, CallingConvention=CallingConvention.StdCall)] public static extern bool OpenPrinter(string szPrinter, out IntPtr hPrinter, IntPtr pd);
+ [DllImport("winspool.Drv", SetLastError=true, ExactSpelling=true, CallingConvention=CallingConvention.StdCall)] public static extern bool ClosePrinter(IntPtr hPrinter);
+ [DllImport("winspool.Drv", EntryPoint="StartDocPrinterA", SetLastError=true, CharSet=CharSet.Ansi, ExactSpelling=true, CallingConvention=CallingConvention.StdCall)] public static extern bool StartDocPrinter(IntPtr hPrinter, Int32 level, [In,MarshalAs(UnmanagedType.LPStruct)] DOCINFOA di);
+ [DllImport("winspool.Drv", SetLastError=true, ExactSpelling=true, CallingConvention=CallingConvention.StdCall)] public static extern bool EndDocPrinter(IntPtr hPrinter);
+ [DllImport("winspool.Drv", SetLastError=true, ExactSpelling=true, CallingConvention=CallingConvention.StdCall)] public static extern bool StartPagePrinter(IntPtr hPrinter);
+ [DllImport("winspool.Drv", SetLastError=true, ExactSpelling=true, CallingConvention=CallingConvention.StdCall)] public static extern bool EndPagePrinter(IntPtr hPrinter);
+ [DllImport("winspool.Drv", SetLastError=true, ExactSpelling=true, CallingConvention=CallingConvention.StdCall)] public static extern bool WritePrinter(IntPtr hPrinter, IntPtr pBytes, Int32 count, out Int32 written);
+ public static bool Send(string printer, byte[] bytes) { IntPtr h; if(!OpenPrinter(printer,out h,IntPtr.Zero)) return false; var di=new DOCINFOA{pDocName="ThorPDV RAW",pDataType="RAW"}; bool ok=StartDocPrinter(h,1,di); if(ok){StartPagePrinter(h); IntPtr p=Marshal.AllocCoTaskMem(bytes.Length); Marshal.Copy(bytes,0,p,bytes.Length); int w=0; ok=WritePrinter(h,p,bytes.Length,out w); Marshal.FreeCoTaskMem(p); EndPagePrinter(h); EndDocPrinter(h);} ClosePrinter(h); return ok; }
+}
+'@; Add-Type -TypeDefinition $src -ErrorAction SilentlyContinue; $b=[Convert]::FromBase64String('${q(base64)}'); if(-not [ThorRawPrinter]::Send('${q(printerName)}',$b)){throw 'raw_print_failed'}`;
+}
+
+async function openDrawer(printerName) {
+  if (process.platform !== 'win32') throw new Error('drawer_requires_windows');
+  if (!printerName || printerName==='__PDF__') throw new Error('drawer_printer_not_configured');
+  const pulse=Buffer.from([0x1b,0x70,0x00,0x19,0xfa]);
+  await powershell(rawPrinterScript(printerName,pulse.toString('base64')));
+  return true;
+}
+
+async function readScale(portName, baudRate=9600, timeoutMs=1500) {
+  if (process.platform !== 'win32') throw new Error('scale_requires_windows');
+  if (!portName) throw new Error('scale_port_not_configured');
+  const q=(s)=>String(s).replace(/'/g,"''");
+  const baud=Math.max(1200,Number(baudRate)||9600);
+  const timeout=Math.max(300,Number(timeoutMs)||1500);
+  const script=`$p=New-Object System.IO.Ports.SerialPort '${q(portName)}',${baud},'None',8,'One'; $p.ReadTimeout=${timeout}; try{$p.Open(); $line=$p.ReadLine(); Write-Output $line} finally{if($p.IsOpen){$p.Close()}}`;
+  const out=await powershell(script);
+  const normalized=String(out||'').replace(',','.');
+  const match=normalized.match(/-?\d+(?:\.\d+)?/);
+  if(!match) throw new Error('scale_weight_not_detected');
+  const value=Number(match[0]);
+  if(!Number.isFinite(value)) throw new Error('scale_invalid_weight');
+  return value;
+}
+
+module.exports={ machineId,listPrinters,listSerialPorts,printText,openDrawer,readScale };
