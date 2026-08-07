@@ -4,6 +4,7 @@ import './price-table.css';
 import './sale.css';
 import './promotion.css';
 import './organization.css';
+import './fiscal.css';
 import { ModuleClient } from './module-client';
 import { AdvancedShell } from './advanced-shell';
 import { CashClient, InventoryClient, ReportsClient, StockTransferClient } from './advanced-clients';
@@ -12,7 +13,8 @@ import { PromotionWorkspace } from './promotion-workspace';
 import { SaleWorkspace } from './sale-workspace';
 import { StockWorkspace } from './stock-workspace';
 import { OrganizationWorkspace } from './organization-workspace';
-import { erpLoad } from './actions';
+import { FiscalWorkspace } from './fiscal-workspace';
+import { erpFiscalSettingsGet, erpLoad } from './actions';
 
 const resourceBySlug: Record<string, string> = {
   'clientes': 'customers', 'clientes/novo': 'customers', 'fornecedores': 'suppliers',
@@ -22,7 +24,7 @@ const resourceBySlug: Record<string, string> = {
   'estoque': 'stock', 'estoque/nova': 'stock', 'estoque/inventario': 'inventory_counts', 'estoque/ajustes': 'stock', 'estoque/transferencias': 'stock',
   'financeiro/receber': 'finance', 'financeiro/receber/novo': 'finance', 'financeiro/pagar': 'finance', 'financeiro/pagar/novo': 'finance',
   'financeiro/fluxo-caixa': 'report_finance', 'financeiro/conciliacao': 'finance',
-  'administrativo/empresas': 'companies', 'administrativo/pdvs': 'pos_registers', 'fiscal': 'fiscal_documents', 'integracoes': 'integrations', 'configuracoes': 'companies',
+  'administrativo/empresas': 'companies', 'administrativo/pdvs': 'pos_registers', 'fiscal': 'fiscal_documents', 'fiscal/nfe':'fiscal_documents', 'fiscal/nfce':'fiscal_documents', 'integracoes': 'integrations', 'configuracoes': 'companies',
   'relatorios/financeiro': 'report_finance', 'relatorios/vendas': 'report_sales', 'relatorios/estoque': 'report_stock', 'relatorios/listagens': 'products',
   'atendimento': 'tickets', 'atendimento/mensagens': 'tickets', 'atendimento/sla': 'tickets',
   'vendas/nova': 'sales', 'pdv/caixa': 'pos_registers', 'ajuda': 'companies',
@@ -47,6 +49,10 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
   if (slug === 'tabelas-precos' || slug === 'tabelas-precos/copiar') return <AdvancedShell title={slug.endsWith('copiar')?'Copiar Tabela de Preços':'Gestão de Tabelas de Preços'} subtitle="Preços específicos por produto, vigência, edição e cópia integral de tabelas." activePath={`/dashboard/${slug}`}><PriceTableWorkspace initialTables={priceTables.data} products={products.data} copyMode={slug.endsWith('copiar')}/></AdvancedShell>;
   if (slug === 'administrativo/empresas') return <AdvancedShell title="Empresas e Filiais" subtitle="Estrutura empresarial compartilhada por estoque, vendas, caixa, fiscal e relatórios." activePath="/dashboard/administrativo/empresas"><OrganizationWorkspace initialCompanies={initial.data} initialBranches={branches.data}/></AdvancedShell>;
   if (slug === 'pdv/caixa') return <AdvancedShell title="Caixa / PDV" subtitle="Abertura, vendas vinculadas e fechamento com valor esperado por terminal." activePath="/dashboard/administrativo/pdvs"><CashClient posRegisters={initial.data}/></AdvancedShell>;
+  if (slug === 'fiscal' || slug === 'fiscal/nfe' || slug === 'fiscal/nfce') {
+    const [settings, sales] = await Promise.all([erpFiscalSettingsGet(), erpLoad('sales')]);
+    return <AdvancedShell title="Fiscal" subtitle="Validação e preparação de NF-e/NFC-e com transmissão bloqueada até configurar credenciais reais." activePath="/dashboard/fiscal"><FiscalWorkspace initialDocs={initial.data} sales={sales.data} settings={(settings.settings ?? {}) as Record<string, unknown>} preselect={slug.endsWith('nfce')?'nfce':'nfe'}/></AdvancedShell>;
+  }
   if (slug === 'relatorios/vendas') return <AdvancedShell title="Relatório de Vendas PDV" subtitle="Faturamento e quantidade por produto, período e filial." activePath="/dashboard/relatorios/vendas"><ReportsClient type="sales" branches={branches.data} initial={initial.data}/></AdvancedShell>;
   if (slug === 'relatorios/financeiro' || slug === 'financeiro/fluxo-caixa') return <AdvancedShell title={slug.startsWith('relatorios')?'Relatório Financeiro':'Fluxo de Caixa'} subtitle="Entradas, saídas, realizado e previsto por período e filial." activePath={slug.startsWith('relatorios')?'/dashboard/relatorios/financeiro':'/dashboard/financeiro/fluxo-caixa'}><ReportsClient type="finance" branches={branches.data} initial={initial.data}/></AdvancedShell>;
   if (slug === 'relatorios/estoque') return <AdvancedShell title="Relatório de Estoque" subtitle="Saldo, estoque mínimo, custo e valor por filial." activePath="/dashboard/relatorios/estoque"><ReportsClient type="stock" branches={branches.data} initial={initial.data}/></AdvancedShell>;
