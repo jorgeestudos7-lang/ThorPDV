@@ -54,6 +54,7 @@ function registerIpc() {
   handle('thor:sync', () => agent.syncNow());
   handle('thor:search-products', (query) => agent.searchProducts(query));
   handle('thor:customers', (query) => agent.searchCustomers(query));
+  handle('thor:quote-sale', (items, discount) => agent.quoteSale(items, discount));
   handle('thor:open-cash', (payload) => agent.openCash(payload));
   handle('thor:cash-movement', (payload) => agent.cashMovement(payload));
   handle('thor:close-cash', (payload) => agent.closeCash(payload));
