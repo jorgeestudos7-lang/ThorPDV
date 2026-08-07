@@ -1,4 +1,5 @@
 const path = require('path');
+const crypto = require('crypto');
 const Database = require('better-sqlite3');
 
 class Store {
@@ -65,7 +66,7 @@ class Store {
   adjustInventory(productId, delta) { this.db.prepare(`insert into inventory(product_id,quantity,reserved_quantity,updated_at) values(?,?,0,?) on conflict(product_id) do update set quantity=quantity+excluded.quantity,updated_at=excluded.updated_at`).run(productId,Number(delta),new Date().toISOString()); }
 
   enqueue(event) { const now=new Date().toISOString(); this.db.prepare('insert into queue(id,type,payload,state,attempts,created_at,updated_at) values(?,?,?,\'pending\',0,?,?)').run(event.id,event.type,JSON.stringify(event.payload||{}),now,now); return event; }
-  pending(limit=100) { return this.db.prepare(`select * from queue where state='pending' order by created_at limit ?`).all(limit).map((q)=>({ id:q.id,type:q.type,payload:JSON.parse(q.payload),attempts:q.attempts })); }
+  pending(limit=100) { return this.db.prepare(`select * from queue where state='pending' order by created_at,rowid limit ?`).all(limit).map((q)=>({ id:q.id,type:q.type,payload:JSON.parse(q.payload),attempts:q.attempts })); }
   markProcessed(id,result) { this.db.prepare(`update queue set state='synced',last_error=null,updated_at=? where id=?`).run(new Date().toISOString(),id); if (result?.sale_id) this.db.prepare('update receipts set server_sale_id=?,server_number=? where event_id=?').run(result.sale_id,String(result.number||''),id); }
   markRejected(id,error) { this.db.prepare(`update queue set state='rejected',attempts=attempts+1,last_error=?,updated_at=? where id=?`).run(String(error||'rejected'),new Date().toISOString(),id); }
   markRetry(id,error) { this.db.prepare(`update queue set attempts=attempts+1,last_error=?,updated_at=? where id=?`).run(String(error||'sync_error'),new Date().toISOString(),id); }
