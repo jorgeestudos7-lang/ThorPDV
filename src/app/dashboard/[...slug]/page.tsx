@@ -20,6 +20,8 @@ import { PromotionWorkspace } from './promotion-workspace';
 import { SaleWorkspace } from './sale-workspace';
 import { StockWorkspace } from './stock-workspace';
 import { OrganizationWorkspace } from './organization-workspace';
+import { BranchConfigWorkspace } from './branch-config-workspace';
+import { SmartPosPairingPanel } from './smartpos-pairing-panel';
 import { FiscalWorkspace } from './fiscal-workspace';
 import { ReconciliationWorkspace } from './reconciliation-workspace';
 import { CashWorkspace } from './cash-workspace';
@@ -38,7 +40,7 @@ const resourceBySlug: Record<string, string> = {
   'estoque': 'stock', 'estoque/nova': 'stock', 'estoque/inventario': 'inventory_counts', 'estoque/ajustes': 'stock', 'estoque/transferencias': 'stock',
   'financeiro/receber': 'finance', 'financeiro/receber/novo': 'finance', 'financeiro/pagar': 'finance', 'financeiro/pagar/novo': 'finance',
   'financeiro/fluxo-caixa': 'report_finance', 'financeiro/conciliacao': 'finance',
-  'administrativo/empresas': 'companies', 'administrativo/pdvs': 'pos_registers', 'fiscal': 'fiscal_documents', 'fiscal/nfe':'fiscal_documents', 'fiscal/nfce':'fiscal_documents', 'integracoes': 'integrations', 'configuracoes': 'companies',
+  'administrativo/empresas': 'companies', 'administrativo/pdvs': 'pos_registers', 'fiscal': 'fiscal_documents', 'fiscal/nfe':'fiscal_documents', 'fiscal/nfce':'fiscal_documents', 'integracoes': 'integrations', 'configuracoes': 'branches',
   'relatorios/financeiro': 'report_finance', 'relatorios/vendas': 'report_sales', 'relatorios/estoque': 'report_stock', 'relatorios/listagens': 'products',
   'atendimento': 'tickets', 'atendimento/mensagens': 'tickets', 'atendimento/sla': 'tickets',
   'vendas/nova': 'sales', 'pdv/caixa': 'pos_registers', 'ajuda': 'companies',
@@ -71,7 +73,8 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
   if (slug === 'estoque/transferencias') return <AdvancedShell title="Transferências de Estoque" subtitle="Movimente produtos entre filiais com dupla escrituração de estoque." activePath="/dashboard/estoque/transferencias"><StockTransferClient products={products.data} branches={branches.data} history={initial.data}/></AdvancedShell>;
   if (slug === 'estoque/inventario') return <AdvancedShell title="Inventários" subtitle="Contagem física, diferenças e ajuste automático de estoque." activePath="/dashboard/estoque/inventario"><InventoryClient inventories={initial.data}/></AdvancedShell>;
   if (slug === 'tabelas-precos' || slug === 'tabelas-precos/copiar') return <AdvancedShell title={slug.endsWith('copiar')?'Copiar Tabela de Preços':'Gestão de Tabelas de Preços'} subtitle="Preços específicos por produto, vigência, edição e cópia integral de tabelas." activePath={`/dashboard/${slug}`}><PriceTableWorkspace initialTables={priceTables.data} products={products.data} copyMode={slug.endsWith('copiar')}/></AdvancedShell>;
-  if (slug === 'administrativo/empresas') return <AdvancedShell title="Empresas e Filiais" subtitle="Cadastro completo por filial: Geral, terminais, fiscal, parâmetros, tributos, entrega, SmartPOS e histórico." activePath="/dashboard/administrativo/empresas"><OrganizationWorkspace initialCompanies={initial.data} initialBranches={branches.data}/></AdvancedShell>;
+  if (slug === 'administrativo/empresas') return <AdvancedShell title="Empresas e Filiais" subtitle="Cadastro mestre das empresas e filiais. Configurações operacionais ficam no módulo Configurações." activePath="/dashboard/administrativo/empresas"><OrganizationWorkspace initialCompanies={initial.data} initialBranches={branches.data}/></AdvancedShell>;
+  if (slug === 'configuracoes') return <AdvancedShell title="Configurações da Filial" subtitle="Centralize parâmetros gerais, terminais, fiscal, tributos, entrega, SmartPOS, integrações e histórico por filial." activePath="/dashboard/configuracoes"><div className="erp-org-grid">{branches.data.length?<><BranchConfigWorkspace branches={branches.data}/><SmartPosPairingPanel branches={branches.data}/></>:<section className="erp-module-card erp-advanced-panel"><h2>Nenhuma filial cadastrada</h2><p>Cadastre uma filial em Administrativo → Empresas e Filiais antes de configurar a operação.</p></section>}</div></AdvancedShell>;
   if (slug === 'pdv/caixa') return <AdvancedShell title="Caixa / PDV" subtitle="Abertura, vendas vinculadas e fechamento com valor esperado e diferença por terminal." activePath="/dashboard/administrativo/pdvs"><CashWorkspace posRegisters={initial.data}/></AdvancedShell>;
   if (slug === 'fiscal' || slug === 'fiscal/nfe' || slug === 'fiscal/nfce') {
     const [settings, sales] = await Promise.all([erpFiscalSettingsGet(), erpLoad('sales')]);
