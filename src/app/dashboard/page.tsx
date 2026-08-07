@@ -1,7 +1,9 @@
+import './dashboard-live.css';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { DashboardClient } from './dashboard-client';
+import { DashboardLive } from './dashboard-live';
+import { dashboardLoad } from './actions';
 
 const SESSION_COOKIE = 'thorpdv_test_session';
 
@@ -26,5 +28,6 @@ export default async function DashboardPage() {
     displayIdentity = 'Administrador';
   }
 
-  return <DashboardClient identity={displayIdentity} />;
+  const live = await dashboardLoad();
+  return <DashboardLive identity={displayIdentity} initial={(live ?? {}) as Record<string, unknown>} />;
 }
