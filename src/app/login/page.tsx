@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { login, signup } from './actions';
+import { login } from './actions';
 
 export default async function LoginPage({
   searchParams,
@@ -12,27 +12,22 @@ export default async function LoginPage({
     <main className="auth-wrap">
       <section className="card auth-card">
         <Link href="/" className="brand">THOR<span>PDV</span></Link>
-        <h1>Acesse sua operação</h1>
-        <p className="muted">Entre com sua conta ou crie o primeiro usuário do ambiente.</p>
+        <h1>Acesso de testes</h1>
+        <p className="muted">Entre com o acesso temporário. Na primeira entrada, você será obrigado a definir uma nova senha.</p>
 
         {params.error ? <p className="error">{params.error}</p> : null}
         {params.message ? <p className="muted">{params.message}</p> : null}
 
         <form className="form">
           <div className="field">
-            <label htmlFor="fullName">Nome (para cadastro)</label>
-            <input id="fullName" name="fullName" type="text" placeholder="Seu nome" />
-          </div>
-          <div className="field">
             <label htmlFor="email">Email</label>
             <input id="email" name="email" type="email" autoComplete="email" required />
           </div>
           <div className="field">
             <label htmlFor="password">Senha</label>
-            <input id="password" name="password" type="password" autoComplete="current-password" minLength={8} required />
+            <input id="password" name="password" type="password" autoComplete="current-password" required />
           </div>
           <button className="button" formAction={login}>Entrar</button>
-          <button className="button secondary" formAction={signup}>Criar conta</button>
         </form>
       </section>
     </main>
