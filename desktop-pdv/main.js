@@ -5,10 +5,12 @@ const { ThorAgent } = require('./agent');
 const { installThorAgentV3 } = require('./agent/v3');
 const { installReturnFix } = require('./agent/v3-return');
 const { installEnrollV3 } = require('./agent/v3-enroll');
+const { installProfilePermissions } = require('./agent/v3-profile-permissions');
 
 installThorAgentV3(ThorAgent);
 installReturnFix(ThorAgent);
 installEnrollV3(ThorAgent);
+installProfilePermissions(ThorAgent);
 
 let mainWindow;
 let agent;
@@ -35,7 +37,7 @@ async function createWindow() {
     apiBase: process.env.THORPDV_API_URL || 'https://thorpdv.vercel.app',
     codec: codec(),
   });
-  agent.sync.appVersion = '0.3.0';
+  agent.sync.appVersion = '0.3.1';
   await agent.start();
 
   mainWindow = new BrowserWindow({
@@ -57,48 +59,53 @@ async function createWindow() {
 }
 
 async function loadPrintable(doc) {
-  const win=new BrowserWindow({show:false,width:900,height:1200,webPreferences:{sandbox:true}});
-  if(doc.kind==='remote_pdf'){
-    if(!/^https?:\/\//i.test(doc.url||'')){ win.destroy(); throw new Error('nfce_pdf_url_unavailable'); }
+  const win = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { sandbox: true } });
+  if (doc.kind === 'remote_pdf') {
+    if (!/^https?:\/\//i.test(doc.url || '')) { win.destroy(); throw new Error('nfce_pdf_url_unavailable'); }
     await win.loadURL(doc.url);
   } else {
-    await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(doc.html||`<pre>${doc.text||''}</pre>`)}`);
+    await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(doc.html || `<pre>${doc.text || ''}</pre>`)}`);
   }
   return win;
 }
 
 async function saveAsPdf(doc) {
-  const win=await loadPrintable(doc);
-  try{
-    const result=await dialog.showSaveDialog(mainWindow,{title:'Salvar documento como PDF',defaultPath:path.join(app.getPath('documents'),doc.filename||`ThorPDV-${Date.now()}.pdf`),filters:[{name:'Documento PDF',extensions:['pdf']}]});
-    if(result.canceled||!result.filePath) return {ok:false,cancelled:true};
-    const buffer=await win.webContents.printToPDF({printBackground:true,preferCSSPageSize:true});
-    fs.writeFileSync(result.filePath,buffer);
-    return {ok:true,target:'pdf',filePath:result.filePath};
+  const win = await loadPrintable(doc);
+  try {
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Salvar documento como PDF',
+      defaultPath: path.join(app.getPath('documents'), doc.filename || `ThorPDV-${Date.now()}.pdf`),
+      filters: [{ name: 'Documento PDF', extensions: ['pdf'] }],
+    });
+    if (result.canceled || !result.filePath) return { ok: false, cancelled: true };
+    const buffer = await win.webContents.printToPDF({ printBackground: true, preferCSSPageSize: true });
+    fs.writeFileSync(result.filePath, buffer);
+    return { ok: true, target: 'pdf', filePath: result.filePath };
   } finally { win.destroy(); }
 }
 
-async function printRemotePdf(doc,printerName) {
-  const win=await loadPrintable(doc);
-  try{
-    return await new Promise((resolve,reject)=>win.webContents.print({silent:true,printBackground:true,deviceName:printerName},(success,reason)=>success?resolve({ok:true,target:printerName}):reject(new Error(reason||'print_failed'))));
+async function printRemotePdf(doc, printerName) {
+  const win = await loadPrintable(doc);
+  try {
+    return await new Promise((resolve, reject) => win.webContents.print({ silent: true, printBackground: true, deviceName: printerName }, (success, reason) => success ? resolve({ ok: true, target: printerName }) : reject(new Error(reason || 'print_failed'))));
   } finally { win.destroy(); }
 }
 
-async function printSale(saleKey,type='pre_sale') {
-  const doc=agent.documentData(saleKey,type);
-  const target=agent.settings().printerName;
-  if(!target) throw new Error('printer_not_configured');
-  if(target==='__PDF__') return saveAsPdf(doc);
-  if(doc.kind==='remote_pdf') return printRemotePdf(doc,target);
-  return agent.printDocument(saleKey,type);
+async function printSale(saleKey, type = 'pre_sale') {
+  if (agent.currentOperator?.() && !agent.canPrint(type, false)) throw new Error(type === 'nfce' ? 'nfce_print_not_allowed' : 'receipt_print_not_allowed');
+  const doc = agent.documentData(saleKey, type);
+  const target = agent.settings().printerName;
+  if (!target) throw new Error('printer_not_configured');
+  if (target === '__PDF__') return saveAsPdf(doc);
+  if (doc.kind === 'remote_pdf') return printRemotePdf(doc, target);
+  return agent.printDocument(saleKey, type);
 }
 
 function registerIpc() {
   const handle = (name, fn) => ipcMain.handle(name, async (_event, ...args) => fn(...args));
-  handle('thor:status', async () => ({ ...(await agent.status()), appVersion:'0.3.0', operator:agent.currentOperator(), v3Settings:agent.v3Settings(), paymentIntegrations:agent.paymentIntegrations() }));
+  handle('thor:status', async () => ({ ...(await agent.status()), appVersion: '0.3.1', operator: agent.currentOperator(), v3Settings: agent.v3Settings(), paymentIntegrations: agent.paymentIntegrations() }));
   handle('thor:enroll', (payload) => agent.enroll(payload));
-  handle('thor:sync', () => agent.syncNow());
+  handle('thor:sync', () => agent.manualSync());
   handle('thor:search-products', (query) => agent.searchProducts(query));
   handle('thor:customers', (query) => agent.searchCustomers(query));
   handle('thor:quote-sale', (items, discount) => agent.quoteSale(items, discount));
@@ -123,12 +130,12 @@ function registerIpc() {
   handle('thor:v3-settings', () => agent.v3Settings());
   handle('thor:save-v3-settings', (settings) => agent.saveV3Settings(settings));
   handle('thor:set-printer', (name) => agent.setPrinter(name));
-  handle('thor:open-drawer', () => agent.openDrawer());
+  handle('thor:open-drawer', () => agent.manualOpenDrawer());
   handle('thor:read-scale', () => agent.readScale());
   handle('thor:payment-integrations', () => agent.paymentIntegrations());
   handle('thor:begin-payment', (payload) => agent.beginIntegratedPayment(payload));
-  handle('thor:print-sale', (saleKey,type) => printSale(saleKey,type));
-  handle('thor:print-last', () => printSale(null,'pre_sale'));
+  handle('thor:print-sale', (saleKey, type) => printSale(saleKey, type));
+  handle('thor:print-last', () => printSale(null, 'pre_sale'));
 }
 
 app.whenReady().then(async () => {
