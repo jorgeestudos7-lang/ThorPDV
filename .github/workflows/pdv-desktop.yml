@@ -41,6 +41,7 @@ jobs:
             'agent/v3-enroll.js',
             'agent/v3-profile-permissions.js',
             'agent/recovery.js',
+            'agent/consistency.js',
             'renderer/app.js',
             'renderer/checkout-v3.js',
             'renderer/validation-v3.js',
