@@ -87,3 +87,5 @@ Cada flavor inclui somente as bibliotecas oficialmente fornecidas para aquele ec
 ## Release
 
 Deploy final SmartPOS solicitado em 2026-08-07 para publicação da configuração completa de filial, bridge SmartPOS e endpoints de orquestração em produção.
+
+A configuração operacional da filial foi reorganizada em `Administrativo → Configurações`; `Empresas e Filiais` permanece focado apenas no cadastro mestre e oferece atalho para a central de configuração.
