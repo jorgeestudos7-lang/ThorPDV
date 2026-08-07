@@ -69,7 +69,8 @@ function installProfilePermissions(ThorAgent) {
   };
 
   ThorAgent.prototype.manualSync = async function () {
-    this._requireProfilePermission('sync.manual', 'manual_sync_not_allowed');
+    const operator = this.currentOperator?.();
+    if (operator && !this._profileAllows('sync.manual', true)) throw new Error('manual_sync_not_allowed');
     return originalSyncNow.call(this);
   };
 
