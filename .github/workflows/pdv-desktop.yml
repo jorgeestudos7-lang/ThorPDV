@@ -40,7 +40,8 @@ jobs:
             'agent/v3-return.js',
             'agent/v3-enroll.js',
             'renderer/app.js',
-            'renderer/checkout-v3.js'
+            'renderer/checkout-v3.js',
+            'renderer/validation-v3.js'
           )
           foreach ($file in $files) {
             Write-Host "Checking $file"
