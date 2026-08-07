@@ -83,3 +83,7 @@ interface SmartPosPaymentAdapter {
 ```
 
 Cada flavor inclui somente as bibliotecas oficialmente fornecidas para aquele ecossistema, evitando empacotar SDKs concorrentes no mesmo APK quando a homologação proibir.
+
+## Release
+
+Deploy final SmartPOS solicitado em 2026-08-07 para publicação da configuração completa de filial, bridge SmartPOS e endpoints de orquestração em produção.
