@@ -6,11 +6,13 @@ const { installThorAgentV3 } = require('./agent/v3');
 const { installReturnFix } = require('./agent/v3-return');
 const { installEnrollV3 } = require('./agent/v3-enroll');
 const { installProfilePermissions } = require('./agent/v3-profile-permissions');
+const { installSyncRecovery } = require('./agent/recovery');
 
 installThorAgentV3(ThorAgent);
 installReturnFix(ThorAgent);
 installEnrollV3(ThorAgent);
 installProfilePermissions(ThorAgent);
+installSyncRecovery(ThorAgent);
 
 let mainWindow;
 let agent;
@@ -37,7 +39,7 @@ async function createWindow() {
     apiBase: process.env.THORPDV_API_URL || 'https://thorpdv.vercel.app',
     codec: codec(),
   });
-  agent.sync.appVersion = '0.3.1';
+  agent.sync.appVersion = '0.3.2';
   await agent.start();
 
   mainWindow = new BrowserWindow({
@@ -103,9 +105,12 @@ async function printSale(saleKey, type = 'pre_sale') {
 
 function registerIpc() {
   const handle = (name, fn) => ipcMain.handle(name, async (_event, ...args) => fn(...args));
-  handle('thor:status', async () => ({ ...(await agent.status()), appVersion: '0.3.1', operator: agent.currentOperator(), v3Settings: agent.v3Settings(), paymentIntegrations: agent.paymentIntegrations() }));
+  handle('thor:status', async () => ({ ...(await agent.status()), appVersion: '0.3.2', operator: agent.currentOperator(), v3Settings: agent.v3Settings(), paymentIntegrations: agent.paymentIntegrations(), syncDiagnostics: agent.syncDiagnostics() }));
   handle('thor:enroll', (payload) => agent.enroll(payload));
   handle('thor:sync', () => agent.manualSync());
+  handle('thor:sync-diagnostics', () => agent.syncDiagnostics());
+  handle('thor:recover-sync', () => agent.recoverSync());
+  handle('thor:disconnect-device', () => agent.disconnectDevice());
   handle('thor:search-products', (query) => agent.searchProducts(query));
   handle('thor:customers', (query) => agent.searchCustomers(query));
   handle('thor:quote-sale', (items, discount) => agent.quoteSale(items, discount));
