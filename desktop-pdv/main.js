@@ -4,9 +4,11 @@ const { app, BrowserWindow, ipcMain, safeStorage, dialog } = require('electron')
 const { ThorAgent } = require('./agent');
 const { installThorAgentV3 } = require('./agent/v3');
 const { installReturnFix } = require('./agent/v3-return');
+const { installEnrollV3 } = require('./agent/v3-enroll');
 
 installThorAgentV3(ThorAgent);
 installReturnFix(ThorAgent);
+installEnrollV3(ThorAgent);
 
 let mainWindow;
 let agent;
