@@ -45,7 +45,7 @@ async function createWindow() {
     apiBase: process.env.THORPDV_API_URL || 'https://thorpdv.vercel.app',
     codec: codec(),
   });
-  agent.sync.appVersion = '0.3.6';
+  agent.sync.appVersion = '0.3.7';
   if (typeof agent.logoutOperator === 'function') agent.logoutOperator();
   await agent.start();
 
@@ -118,65 +118,46 @@ async function printSale(saleKey, type = 'pre_sale') {
 }
 
 async function printCashClose(summary) {
-  const doc = agent.cashCloseDocument(summary || null);
+  const doc = agent.cashCloseDocument(summary);
   const target = agent.settings().printerName;
   if (!target) throw new Error('printer_not_configured');
   if (target === '__PDF__') return saveAsPdf(doc);
   return printHtmlDocument(doc, target);
 }
 
-function registerIpc() {
-  const handle = (name, fn) => ipcMain.handle(name, async (_event, ...args) => fn(...args));
-  handle('thor:status', async () => ({ ...(await agent.status()), appVersion: '0.3.6', operator: agent.currentOperator(), v3Settings: agent.v3Settings(), paymentIntegrations: agent.paymentIntegrations(), syncDiagnostics: agent.syncDiagnostics() }));
-  handle('thor:enroll', (payload) => agent.enroll(payload));
-  handle('thor:sync', () => agent.manualSync());
-  handle('thor:sync-diagnostics', () => agent.syncDiagnostics());
-  handle('thor:recover-sync', () => agent.recoverSync());
-  handle('thor:disconnect-device', () => agent.disconnectDevice());
-  handle('thor:search-products', (query) => agent.searchProducts(query));
-  handle('thor:customers', (query) => agent.searchCustomers(query));
-  handle('thor:quote-sale', (items, discount) => agent.quoteSale(items, discount));
-  handle('thor:quote-checkout', (payload) => agent.quoteCheckout(payload));
-  handle('thor:operators', () => agent.staffUsers());
-  handle('thor:operator-login', (payload) => agent.loginOperator(payload));
-  handle('thor:operator-logout', () => agent.logoutOperator());
-  handle('thor:supervisor-authorize', (payload) => agent.authorizeSupervisor(payload));
-  handle('thor:open-cash', (payload) => agent.openCash(payload));
-  handle('thor:cash-movement', (payload) => agent.cashMovement(payload));
-  handle('thor:cash-preview', () => agent.cashClosingPreview());
-  handle('thor:close-cash', (payload) => agent.closeCash(payload));
-  handle('thor:last-cash-close', () => agent.lastCashCloseSummary());
-  handle('thor:print-cash-close', (summary) => printCashClose(summary));
-  handle('thor:finalize-sale', (payload) => agent.finalizeSale(payload));
-  handle('thor:cancel-sale', (payload) => agent.cancelSale(payload));
-  handle('thor:return-sale', (payload) => agent.returnSale(payload));
-  handle('thor:request-nfce', (payload) => agent.requestNfce(payload));
-  handle('thor:fiscal-sales', (query) => agent.fiscalSales(query));
-  handle('thor:fiscal-sale', (key) => agent.fiscalSale(key));
-  handle('thor:printers', () => agent.listPrinters());
-  handle('thor:serial-ports', () => agent.listSerialPorts());
-  handle('thor:settings', () => agent.settings());
-  handle('thor:save-settings', (settings) => agent.saveSettings(settings));
-  handle('thor:v3-settings', () => agent.v3Settings());
-  handle('thor:save-v3-settings', (settings) => agent.saveV3Settings(settings));
-  handle('thor:set-printer', (name) => agent.setPrinter(name));
-  handle('thor:open-drawer', () => agent.manualOpenDrawer());
-  handle('thor:read-scale', () => agent.readScale());
-  handle('thor:payment-integrations', () => agent.paymentIntegrations());
-  handle('thor:begin-payment', (payload) => agent.beginIntegratedPayment(payload));
-  handle('thor:print-sale', (saleKey, type) => printSale(saleKey, type));
-  handle('thor:print-last', () => printSale(null, 'pre_sale'));
-}
-
 app.whenReady().then(async () => {
-  registerIpc();
   await createWindow();
   app.on('activate', async () => {
     if (BrowserWindow.getAllWindows().length === 0) await createWindow();
   });
 });
 
-app.on('window-all-closed', async () => {
-  if (agent) await agent.stop();
+app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
+
+ipcMain.handle('thor:status', () => agent.status());
+ipcMain.handle('thor:settings', () => agent.settings());
+ipcMain.handle('thor:update-settings', (_event, settings) => agent.updateSettings(settings));
+ipcMain.handle('thor:enroll', (_event, input) => agent.enroll(input));
+ipcMain.handle('thor:sync', () => agent.syncNow());
+ipcMain.handle('thor:products', (_event, query) => agent.searchProducts(query));
+ipcMain.handle('thor:customers', (_event, query) => agent.searchCustomers(query));
+ipcMain.handle('thor:quote-sale', (_event, items) => agent.quoteSale(items));
+ipcMain.handle('thor:finalize-sale', (_event, sale) => agent.finalizeSale(sale));
+ipcMain.handle('thor:open-cash', (_event, payload) => agent.openCash(payload));
+ipcMain.handle('thor:cash-movement', (_event, payload) => agent.cashMovement(payload));
+ipcMain.handle('thor:close-cash', (_event, payload) => agent.closeCash(payload));
+ipcMain.handle('thor:printers', () => agent.listPrinters());
+ipcMain.handle('thor:serial-ports', () => agent.listSerialPorts());
+ipcMain.handle('thor:print-sale', (_event, saleKey, type) => printSale(saleKey, type));
+ipcMain.handle('thor:print-cash-close', (_event, summary) => printCashClose(summary));
+ipcMain.handle('thor:login-operator', (_event, payload) => agent.loginOperator(payload));
+ipcMain.handle('thor:logout-operator', () => agent.logoutOperator());
+ipcMain.handle('thor:current-operator', () => agent.currentOperator());
+ipcMain.handle('thor:scale-read', (_event, payload) => agent.readScale(payload));
+ipcMain.handle('thor:cash-drawer', () => agent.openCashDrawer());
+ipcMain.handle('thor:sync-recovery', () => agent.recoverSyncQueue());
+ipcMain.handle('thor:disconnect', () => agent.disconnectDevice());
+ipcMain.handle('thor:cash-summary', () => agent.cashClosingSummary());
+ipcMain.handle('thor:production-reprint', (_event, payload) => agent.reprintProduction(payload));
