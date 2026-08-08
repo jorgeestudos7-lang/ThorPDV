@@ -10,7 +10,7 @@ function installProfilePermissions(ThorAgent) {
   const originalRequestNfce = ThorAgent.prototype.requestNfce;
   const originalFiscalSales = ThorAgent.prototype.fiscalSales;
   const originalFiscalSale = ThorAgent.prototype.fiscalSale;
-  const originalSyncNow = ThorAgent.prototype.syncNow;
+  const originalLoginOperator = ThorAgent.prototype.loginOperator;
 
   ThorAgent.prototype._profileAllows = function (path, fallback = false) {
     const operator = this.currentOperator?.();
@@ -23,6 +23,29 @@ function installProfilePermissions(ThorAgent) {
     if (!operator) throw new Error('operator_required');
     if (!this._profileAllows(path, false)) throw new Error(error);
     return operator;
+  };
+
+  ThorAgent.prototype.loginOperator = async function (payload = {}) {
+    const localLogin = await originalLoginOperator.call(this, payload);
+    const sync = await this.sync.run(true);
+
+    if (sync?.ok) {
+      try {
+        const refreshedLogin = await originalLoginOperator.call(this, payload);
+        return {
+          ...refreshedLogin,
+          sync: { ok: true, at: this.store.get('last_sync_at') || null },
+        };
+      } catch (error) {
+        this.store.set('current_operator_id', '');
+        throw error;
+      }
+    }
+
+    return {
+      ...localLogin,
+      sync: { ok: false, offline: true, error: sync?.error || 'sync_unavailable' },
+    };
   };
 
   ThorAgent.prototype.finalizeSale = async function (payload = {}) {
@@ -71,7 +94,7 @@ function installProfilePermissions(ThorAgent) {
   ThorAgent.prototype.manualSync = async function () {
     const operator = this.currentOperator?.();
     if (operator && !this._profileAllows('sync.manual', true)) throw new Error('manual_sync_not_allowed');
-    return originalSyncNow.call(this);
+    return this.sync.run(true);
   };
 
   ThorAgent.prototype.canPrint = function (type = 'pre_sale', reprint = false) {
