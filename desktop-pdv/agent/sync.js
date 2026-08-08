@@ -9,6 +9,7 @@ class SyncEngine {
     this.running=false;
     this.failures=0;
     this.backoffUntil=0;
+    this.intervalMs=5*60*1000;
   }
 
   headers(){
@@ -34,7 +35,7 @@ class SyncEngine {
 
   start(){
     if(this.timer) return;
-    this.timer=setInterval(()=>this.run(false).catch(()=>{}),2500);
+    this.timer=setInterval(()=>this.run(false).catch(()=>{}),this.intervalMs);
     this.run(false).catch(()=>{});
   }
 
@@ -72,7 +73,7 @@ class SyncEngine {
 
       await this.request('/api/pdv/heartbeat',{
         appVersion:this.appVersion,
-        capabilities:{offline:true,printing:true,serial:true,fiscalMenu:true,returns:true,pdf:true,configurableShortcuts:true,operators:true,multiPayment:true,cashDrawer:true,scale:true,tefBridge:true,stockConsistency:true,syncBackoff:true},
+        capabilities:{offline:true,printing:true,serial:true,fiscalMenu:true,returns:true,pdf:true,configurableShortcuts:true,operators:true,multiPayment:true,cashDrawer:true,scale:true,tefBridge:true,stockConsistency:true,syncBackoff:true,autoSyncFiveMinutes:true,syncAfterOperatorLogin:true},
         metrics:{
           queue:this.store.queueStats(),
           operatorId:this.store.get('current_operator_id')||null,
