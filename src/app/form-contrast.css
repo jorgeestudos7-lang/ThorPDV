@@ -1,0 +1,106 @@
+/* Global form readability for the light ERP shell.
+   Keep auth/marketing dark theme untouched; only normalize controls inside .erp-shell. */
+.erp-shell {
+  --form-text: #172033;
+  --form-muted: #667085;
+  --form-placeholder: #98a2b3;
+  --form-bg: #ffffff;
+  --form-bg-disabled: #f2f4f7;
+  --form-border: #cfd6df;
+  --form-focus: #6d39d8;
+  --form-focus-ring: rgba(109, 57, 216, .14);
+  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  color-scheme: light;
+}
+
+.erp-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+.erp-shell select,
+.erp-shell textarea {
+  color-scheme: light !important;
+  background-color: var(--form-bg) !important;
+  color: var(--form-text) !important;
+  caret-color: var(--form-text) !important;
+  border-color: var(--form-border);
+  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  -webkit-text-fill-color: var(--form-text) !important;
+  opacity: 1;
+}
+
+.erp-shell select option,
+.erp-shell select optgroup {
+  background: #ffffff !important;
+  color: #172033 !important;
+  -webkit-text-fill-color: #172033 !important;
+  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 14px;
+}
+
+.erp-shell input::placeholder,
+.erp-shell textarea::placeholder {
+  color: var(--form-placeholder) !important;
+  -webkit-text-fill-color: var(--form-placeholder) !important;
+  opacity: 1;
+}
+
+.erp-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):focus,
+.erp-shell select:focus,
+.erp-shell textarea:focus {
+  outline: none !important;
+  border-color: var(--form-focus) !important;
+  box-shadow: 0 0 0 3px var(--form-focus-ring) !important;
+  background-color: #ffffff !important;
+  color: var(--form-text) !important;
+}
+
+.erp-shell input:disabled,
+.erp-shell select:disabled,
+.erp-shell textarea:disabled,
+.erp-shell input[readonly],
+.erp-shell textarea[readonly] {
+  background-color: var(--form-bg-disabled) !important;
+  color: var(--form-muted) !important;
+  -webkit-text-fill-color: var(--form-muted) !important;
+  cursor: not-allowed;
+  opacity: 1 !important;
+}
+
+.erp-shell input:-webkit-autofill,
+.erp-shell input:-webkit-autofill:hover,
+.erp-shell input:-webkit-autofill:focus,
+.erp-shell textarea:-webkit-autofill,
+.erp-shell select:-webkit-autofill {
+  -webkit-text-fill-color: var(--form-text) !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  caret-color: var(--form-text) !important;
+}
+
+.erp-shell input[type="checkbox"],
+.erp-shell input[type="radio"] {
+  color-scheme: light;
+  accent-color: var(--erp-green);
+}
+
+/* The ERP used dark filter controls in an otherwise light interface. Normalize them. */
+.erp-shell .erp-filter-card input,
+.erp-shell .erp-filter-card select {
+  background: #ffffff !important;
+  color: #172033 !important;
+  -webkit-text-fill-color: #172033 !important;
+}
+.erp-shell .erp-filter-card input::-webkit-calendar-picker-indicator {
+  filter: none !important;
+  opacity: .72;
+}
+
+/* Product editor and dynamically rendered workspaces must not inherit the page's dark html scheme. */
+.erp-shell .product-editor-card,
+.erp-shell .product-tab-panel,
+.erp-shell .product-fieldset,
+.erp-shell .composition-table,
+.erp-shell .report-workspace,
+.erp-shell .branch-settings,
+.erp-shell .pdv-device-workspace {
+  color-scheme: light;
+}
