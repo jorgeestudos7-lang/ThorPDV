@@ -43,12 +43,14 @@ jobs:
             'agent/recovery.js',
             'agent/consistency.js',
             'agent/cash-closing.js',
+            'agent/production.js',
             'renderer/app.js',
             'renderer/checkout-v3.js',
             'renderer/validation-v3.js',
             'renderer/sync-recovery.js',
             'renderer/operator-gate.js',
-            'renderer/cash-closing.js'
+            'renderer/cash-closing.js',
+            'renderer/ux-v038.js'
           )
           foreach ($file in $files) {
             Write-Host "Checking $file"
