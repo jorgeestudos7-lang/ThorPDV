@@ -11,6 +11,21 @@ function patchReceipt(db, eventId, patch) {
   db.prepare('update receipts set payload=? where event_id=?').run(JSON.stringify(payload), String(eventId));
 }
 
+function onDemandComponentDeltas(store, productId, soldQuantity) {
+  const product = store.product(String(productId || ''));
+  if (!product || String(product.production_mode || 'stock') !== 'on_demand') return null;
+  const list = parse(product.production_composition, []);
+  const yieldQty = Math.max(Number(product.production_yield || 1), 0.000001);
+  const factor = Math.abs(Number(soldQuantity || 0)) / yieldQty;
+  return (Array.isArray(list) ? list : [])
+    .filter((c) => c && c.deduct_stock !== false && c.component_product_id)
+    .map((c) => ({
+      productId: String(c.component_product_id),
+      quantity: Math.abs(Number(c.quantity || 0) * (1 + Math.max(Number(c.waste_percent || 0), 0) / 100) * factor),
+    }))
+    .filter((x) => Number.isFinite(x.quantity) && x.quantity > 0);
+}
+
 function pendingInventoryDeltas(store) {
   const deltas = new Map();
   const add = (productId, qty) => {
@@ -30,11 +45,23 @@ function pendingInventoryDeltas(store) {
   for (const event of events) {
     const payload = parse(event.payload, {});
     if (event.type === 'sale_completed') {
-      for (const item of payload.items || []) add(item.product_id, -Math.abs(Number(item.quantity || 0)));
+      for (const item of payload.items || []) {
+        const components = onDemandComponentDeltas(store, item.product_id, item.quantity);
+        if (components) {
+          for (const component of components) add(component.productId, -component.quantity);
+        } else {
+          add(item.product_id, -Math.abs(Number(item.quantity || 0)));
+        }
+      }
       continue;
     }
     if (event.type === 'sale_return') {
-      for (const item of payload.items || []) add(item.product_id, Math.abs(Number(item.quantity || 0)));
+      // Devolução de item preparado sob demanda é financeira e não recompõe produto acabado/insumos.
+      for (const item of payload.items || []) {
+        const product = store.product(String(item.product_id || ''));
+        if (product && String(product.production_mode || 'stock') === 'on_demand') continue;
+        add(item.product_id, Math.abs(Number(item.quantity || 0)));
+      }
       continue;
     }
     if (event.type === 'sale_cancel') {
@@ -45,7 +72,11 @@ function pendingInventoryDeltas(store) {
         if (sale) receipt = sale;
       }
       const original = parse(receipt?.payload, {});
-      for (const item of original.items || []) add(item.product_id, Math.abs(Number(item.quantity || 0)));
+      for (const item of original.items || []) {
+        const product = store.product(String(item.product_id || ''));
+        if (product && String(product.production_mode || 'stock') === 'on_demand') continue;
+        add(item.product_id, Math.abs(Number(item.quantity || 0)));
+      }
     }
   }
   return deltas;
@@ -87,6 +118,7 @@ function installDataConsistency(ThorAgent) {
       for (const row of reconciled) this.markProcessed(row.id, { sale_id: row.sale_id, number: row.number });
 
       // Um pull completo não pode apagar do saldo local as vendas ainda não sincronizadas.
+      // Para produtos sob demanda, a pendência corresponde aos ingredientes da ficha técnica.
       const pulledIds = new Set((data.inventory || []).map((item) => String(item.product_id || '')).filter(Boolean));
       if (pulledIds.size) {
         const deltas = pendingInventoryDeltas(this);
