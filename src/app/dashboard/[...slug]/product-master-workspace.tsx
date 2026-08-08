@@ -20,6 +20,23 @@ const units = [
   ['DZ','Dúzia'],['BD','Balde'],['SC','Saco'],['RL','Rolo'],
 ] as const;
 
+const productTypes = [
+  ['fixed_asset','Ativo imobilizado'],
+  ['packaging','Embalagem'],
+  ['use_consumption','Material de uso e consumo'],
+  ['raw_material','Matéria-prima'],
+  ['resale','Mercadoria para revenda'],
+  ['other','Outras'],
+  ['other_inputs','Outros insumos'],
+  ['finished_product','Produto acabado'],
+  ['work_in_process','Produto em processo'],
+  ['intermediate_product','Produto intermediário'],
+  ['service','Serviços'],
+  ['byproduct','Subproduto'],
+] as const;
+
+const productTypeLabel = (value:unknown) => productTypes.find(([code])=>code===text(value))?.[1] || 'Mercadoria para revenda';
+
 const tabs = [
   ['required','Obrigatório'],
   ['settings','Configurações'],
@@ -40,7 +57,7 @@ const money = (v:unknown) => num(v).toLocaleString('pt-BR',{style:'currency',cur
 
 function blank(){
   return {
-    id:'', sku:'', barcode:'', name:'', description:'', group_id:'', class_id:'', unit:'UN', active:true, is_weighable:false,
+    id:'', sku:'', barcode:'', name:'', description:'', group_id:'', class_id:'', unit:'UN', product_type:'resale', active:true, is_weighable:false,
     supplier_id:'', exclusive_supplier:false, financial_category:'', stock_location:'', fractioned:false, prompt_quantity:false,
     modifiers_enabled:false, allow_discount:true, apply_surcharge:true, self_service:false, favorite:false, age_restricted:false,
     label_scale:false, shelf_life_days:'0', ncm:'', cest:'', cfop_default:'', origin:'0', cost_price:'0', sale_price:'0',
@@ -72,7 +89,7 @@ function draftFromDetail(detail:Row):Draft {
     ...blank(),
     id:text(p.id), sku:text(p.sku), barcode:text(barcodes.find(b=>b.is_primary)?.barcode || barcodes[0]?.barcode),
     name:text(p.name), description:text(p.description), group_id:text(p.group_id), class_id:text(p.class_id),
-    unit:text(p.unit) || 'UN', active:p.active !== false, is_weighable:bool(p.is_weighable), supplier_id:text(p.supplier_id),
+    unit:text(p.unit) || 'UN', product_type:text(p.product_type) || 'resale', active:p.active !== false, is_weighable:bool(p.is_weighable), supplier_id:text(p.supplier_id),
     exclusive_supplier:bool(p.exclusive_supplier), financial_category:text(p.financial_category), stock_location:text(p.stock_location),
     fractioned:bool(p.fractioned), prompt_quantity:bool(p.prompt_quantity), modifiers_enabled:bool(p.modifiers_enabled),
     allow_discount:bool(p.allow_discount,true), apply_surcharge:bool(p.apply_surcharge,true), self_service:bool(p.self_service),
@@ -175,6 +192,7 @@ function ProductEditor({row,products,groups,classes,suppliers,modifiers,branches
   const save = () => startTransition(async()=>{
     setMessage('');
     if(!draft.name.trim()) return setMessage('Informe a descrição do produto.');
+    if(!draft.product_type) return setMessage('Selecione o tipo de produto.');
     if(num(draft.sale_price) < 0) return setMessage('Preço de venda inválido.');
     if((draft.production_mode === 'on_demand' || draft.production_mode === 'batch') && num(draft.production_yield) <= 0){
       return setMessage('O rendimento da composição deve ser maior que zero.');
@@ -248,7 +266,7 @@ function ProductEditor({row,products,groups,classes,suppliers,modifiers,branches
       <div>
         <button type="button" className="product-back" onClick={onClose}>← Voltar</button>
         <h2>{draft.name || 'Novo Produto'}</h2>
-        <p>{draft.id ? `${draft.unit} • Código ${draft.sku || 'sem SKU'}` : 'Cadastre o produto e depois configure estoque, composição e produção.'}</p>
+        <p>{draft.id ? `${productTypeLabel(draft.product_type)} • ${draft.unit} • Código ${draft.sku || 'sem SKU'}` : 'Cadastre o produto e depois configure estoque, composição e produção.'}</p>
       </div>
       <button type="button" className="product-primary" onClick={save} disabled={pending}>💾 {pending?'Salvando...':'Gravar'}</button>
     </div>
@@ -263,6 +281,7 @@ function ProductEditor({row,products,groups,classes,suppliers,modifiers,branches
         <label className="span2"><span>Descrição do produto *</span><input value={draft.name} onChange={e=>set('name',e.target.value)}/></label>
         <label><span>Status</span><YesNo value={draft.active} onChange={v=>set('active',v)} yes="Ativo" no="Inativo"/></label>
         <label><span>Código de venda / SKU</span><input value={draft.sku} onChange={e=>set('sku',e.target.value)}/></label>
+        <label><span>Tipo de produto *</span><select required value={draft.product_type} onChange={e=>set('product_type',e.target.value)}>{productTypes.map(([code,label])=><option key={code} value={code}>{label}</option>)}</select></label>
         <label><span>Grupo</span><select value={draft.group_id} onChange={e=>{set('group_id',e.target.value);set('class_id','')}}><option value="">Selecione</option>{groups.map(g=><option key={text(g.id)} value={text(g.id)}>{text(g.name)}</option>)}</select></label>
         <label><span>Classe</span><select value={draft.class_id} onChange={e=>set('class_id',e.target.value)}><option value="">Selecione</option>{filteredClasses.map(c=><option key={text(c.id)} value={text(c.id)}>{text(c.name)}</option>)}</select></label>
         <label><span>Unidade de estoque</span><select value={draft.unit} onChange={e=>set('unit',e.target.value)}>{units.map(([code,label])=><option key={code} value={code}>{code} - {label}</option>)}</select></label>
@@ -437,10 +456,11 @@ export function ProductMasterWorkspace({initialProducts,groups,classes,suppliers
         <button type="button" className="product-primary" onClick={()=>setEditing(null)}>+ Novo Produto</button>
       </div>
       {message && <div className="product-message">{message}</div>}
-      <div className="product-table-wrap"><table className="product-table"><thead><tr><th>Código</th><th>EAN</th><th>Produto</th><th>Un.</th><th>Venda</th><th>Estoque</th><th>Tipo</th><th>Status</th><th></th></tr></thead><tbody>
-        {products.length===0?<tr><td colSpan={9} className="product-empty">Nenhum produto encontrado.</td></tr>:products.map(product=><tr key={text(product.id)}>
+      <div className="product-table-wrap"><table className="product-table"><thead><tr><th>Código</th><th>EAN</th><th>Produto</th><th>Tipo produto</th><th>Un.</th><th>Venda</th><th>Estoque</th><th>Operação</th><th>Status</th><th></th></tr></thead><tbody>
+        {products.length===0?<tr><td colSpan={10} className="product-empty">Nenhum produto encontrado.</td></tr>:products.map(product=><tr key={text(product.id)}>
           <td>{text(product.sku)||'—'}</td><td className="mono">{text(product.barcode)||'—'}</td>
           <td><strong>{text(product.name)}</strong><small>{text(product.group_name)||'Sem grupo'}</small></td>
+          <td><span className="product-pill">{productTypeLabel(product.product_type)}</span></td>
           <td>{text(product.unit)||'UN'}</td><td>{money(product.sale_price)}</td><td>{num(product.stock).toLocaleString('pt-BR',{maximumFractionDigits:3})}</td>
           <td>{text(product.production_mode)==='on_demand'?<span className="product-pill weighable">🍳 Sob demanda</span>:product.is_weighable?<span className="product-pill weighable">⚖ Pesável</span>:<span className="product-pill">Comum</span>}</td>
           <td><span className={`product-status ${product.active===false?'off':''}`}>{product.active===false?'Inativo':'Ativo'}</span></td>
