@@ -1,0 +1,102 @@
+/* Force predictable, high-contrast light form controls in Electron/Windows.
+   This prevents OS dark mode from rendering white text on white fields or unreadable select options. */
+:root,
+html,
+body {
+  color-scheme: light !important;
+  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+body {
+  color: #232a31;
+  background: #f3f5f4;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+select,
+textarea {
+  color-scheme: light !important;
+  background-color: #ffffff !important;
+  color: #232a31 !important;
+  caret-color: #232a31 !important;
+  -webkit-text-fill-color: #232a31 !important;
+  border-color: #cfd8d3;
+  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 1;
+}
+
+select option,
+select optgroup {
+  background: #ffffff !important;
+  color: #232a31 !important;
+  -webkit-text-fill-color: #232a31 !important;
+  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 14px;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #89938e !important;
+  -webkit-text-fill-color: #89938e !important;
+  opacity: 1;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):focus,
+select:focus,
+textarea:focus {
+  outline: none !important;
+  border-color: #19834b !important;
+  box-shadow: 0 0 0 3px rgba(25, 131, 75, .14) !important;
+  background: #ffffff !important;
+  color: #232a31 !important;
+  -webkit-text-fill-color: #232a31 !important;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled,
+input[readonly],
+textarea[readonly] {
+  background: #eef2f0 !important;
+  color: #65706a !important;
+  -webkit-text-fill-color: #65706a !important;
+  opacity: 1 !important;
+  cursor: not-allowed;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: #232a31 !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  caret-color: #232a31 !important;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  color-scheme: light !important;
+  accent-color: #19834b;
+}
+
+/* Keep numeric/payment/shortcut fields readable even when component CSS changes their background. */
+.checkout-meta input,
+.return-items input,
+.shortcut-list input,
+.cash-payment-row input,
+.cash-drawer-count input,
+.cash-close-notes textarea,
+.operator-gate-field input,
+.operator-gate-field select,
+.fiscal-toolbar input,
+.settings-grid textarea,
+.field input,
+.field select,
+.field textarea,
+.search {
+  color: #232a31 !important;
+  -webkit-text-fill-color: #232a31 !important;
+}
