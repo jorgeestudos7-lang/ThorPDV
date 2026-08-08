@@ -1,0 +1,50 @@
+/* ThorPDV 0.3.8 — operação rápida de caixa */
+.shell{grid-template-rows:68px minmax(0,1fr) 74px!important}
+.bottom{
+  min-height:74px!important;
+  padding:9px 16px!important;
+  background:#073d2d!important;
+  color:#fff!important;
+  border-top:3px solid #19a86b!important;
+  box-shadow:0 -5px 18px rgba(7,61,45,.16);
+  gap:14px!important;
+  font-size:13px!important;
+  font-weight:800!important;
+}
+#hotkeyHelp{display:flex;align-items:center;gap:7px;flex-wrap:wrap;min-width:0}
+.footer-key{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:7px 9px;border:1px solid rgba(255,255,255,.22);border-radius:8px;
+  background:rgba(255,255,255,.09);color:#fff;white-space:nowrap;
+}
+.footer-key kbd{
+  min-width:31px;text-align:center;background:#fff!important;color:#07543a!important;
+  border:0!important;border-radius:6px!important;padding:3px 6px!important;font-size:11px!important;font-weight:950!important;
+}
+.footer-key.payment{background:#0d6c4d;border-color:#35c88a}
+#footerSync{
+  margin-left:auto;display:grid;gap:2px;min-width:190px;text-align:right;
+  color:#eefcf5!important;font-size:12px!important;line-height:1.25;
+}
+#footerSync strong{color:#72edb3;font-size:12px}
+.payment-open{
+  min-height:50px!important;background:#118451!important;color:#fff!important;
+  border:1px solid #0e7447!important;font-size:15px!important;font-weight:900!important;
+  box-shadow:0 5px 14px rgba(17,132,81,.18);
+}
+.payment-open:hover{background:#0d7447!important}
+.payment-open kbd{background:rgba(255,255,255,.18)!important;color:#fff!important;border-color:rgba(255,255,255,.35)!important}
+#addPayment{
+  min-width:210px;min-height:48px;background:#118451!important;color:#fff!important;
+  border:1px solid #0e7447!important;font-size:15px!important;font-weight:950!important;
+  box-shadow:0 5px 14px rgba(17,132,81,.18);
+}
+#addPayment:hover{background:#0d7447!important}
+#addPayment kbd{margin-left:8px;background:rgba(255,255,255,.18)!important;color:#fff!important;border-color:rgba(255,255,255,.35)!important}
+.payment-entry-actions{align-items:center}
+.payment-entry-actions #integratedPay{min-height:48px}
+#finishCheckout{min-height:46px;font-weight:900}
+@media(max-width:1180px){
+  .bottom{min-height:82px!important}.shell{grid-template-rows:68px minmax(0,1fr) 82px!important}
+  #footerSync{min-width:150px}.footer-key{padding:6px 7px;font-size:11px}
+}
