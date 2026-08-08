@@ -10,6 +10,8 @@ import './cash.css';
 import './operator-admin.css';
 import './pdv-profile.css';
 import './product-workspace.css';
+import './product-master.css';
+import './production.css';
 import './branch-config.css';
 import { ModuleClient } from './module-client';
 import { AdvancedShell } from './advanced-shell';
@@ -27,17 +29,18 @@ import { ReconciliationWorkspace } from './reconciliation-workspace';
 import { CashWorkspace } from './cash-workspace';
 import { OperatorWorkspace } from './operator-workspace';
 import { PdvProfileWorkspace } from './pdv-profile-workspace';
-import { ProductWorkspace } from './product-workspace';
+import { ProductMasterWorkspace } from './product-master-workspace';
+import { ProductionWorkspace } from './production-workspace';
 import { reconciliationData } from './reconciliation-actions';
 import { listPdvOperators } from './operator-actions';
-import { erpFiscalSettingsGet, erpLoad, erpProductList } from './actions';
+import { erpFiscalSettingsGet, erpLoad, erpProductList, erpProductionOrders } from './actions';
 
 const resourceBySlug: Record<string, string> = {
   'clientes': 'customers', 'clientes/novo': 'customers', 'fornecedores': 'suppliers',
   'perfis-pdv': 'profiles_pdv', 'usuarios-pdv': 'users_pdv', 'perfis-adm': 'profiles_adm', 'usuarios-adm': 'users_adm',
   'produtos': 'products', 'produtos/novo': 'products', 'grupos': 'groups', 'classes': 'classes', 'modificadores': 'modifiers',
   'tabelas-precos': 'price_tables', 'tabelas-precos/copiar': 'price_tables', 'tabelas-precos/ajustes': 'price_adjustments', 'promocoes': 'promotions',
-  'estoque': 'stock', 'estoque/nova': 'stock', 'estoque/inventario': 'inventory_counts', 'estoque/ajustes': 'stock', 'estoque/transferencias': 'stock',
+  'estoque': 'stock', 'estoque/nova': 'stock', 'estoque/inventario': 'inventory_counts', 'estoque/ajustes': 'stock', 'estoque/transferencias': 'stock', 'estoque/producao':'products',
   'financeiro/receber': 'finance', 'financeiro/receber/novo': 'finance', 'financeiro/pagar': 'finance', 'financeiro/pagar/novo': 'finance',
   'financeiro/fluxo-caixa': 'report_finance', 'financeiro/conciliacao': 'finance',
   'administrativo/empresas': 'companies', 'administrativo/pdvs': 'pos_registers', 'fiscal': 'fiscal_documents', 'fiscal/nfe':'fiscal_documents', 'fiscal/nfce':'fiscal_documents', 'integracoes': 'integrations', 'configuracoes': 'branches',
@@ -51,14 +54,18 @@ export default async function ModulePage({ params }: { params: Promise<{ slug: s
   const slug = resolved.slug.join('/');
   const resource = resourceBySlug[slug] ?? 'products';
   const initial = await erpLoad(resource);
-  const [products, customers, groups, classes, branches, profilesPdv, profilesAdm, priceTables, suppliers] = await Promise.all([
+  const [products, customers, groups, classes, branches, profilesPdv, profilesAdm, priceTables, suppliers, modifiers] = await Promise.all([
     erpLoad('products'), erpLoad('customers'), erpLoad('groups'), erpLoad('classes'), erpLoad('branches'),
-    erpLoad('profiles_pdv'), erpLoad('profiles_adm'), erpLoad('price_tables'), erpLoad('suppliers'),
+    erpLoad('profiles_pdv'), erpLoad('profiles_adm'), erpLoad('price_tables'), erpLoad('suppliers'), erpLoad('modifiers'),
   ]);
 
   if (slug === 'produtos' || slug === 'produtos/novo') {
     const productList = await erpProductList();
-    return <AdvancedShell title="Cadastro de Produtos" subtitle="Produtos integrados a preço, estoque, balança, vendas e fiscal." activePath="/dashboard/produtos"><ProductWorkspace initialProducts={productList.data} groups={groups.data} classes={classes.data}/></AdvancedShell>;
+    return <AdvancedShell title="Cadastro de Produtos" subtitle="Cadastro completo integrado a preços, tributação, estoque, ficha técnica, produção, balança e PDV." activePath="/dashboard/produtos"><ProductMasterWorkspace initialProducts={productList.data} groups={groups.data} classes={classes.data} suppliers={suppliers.data} modifiers={modifiers.data} branches={branches.data}/></AdvancedShell>;
+  }
+  if (slug === 'estoque/producao') {
+    const orders=await erpProductionOrders();
+    return <AdvancedShell title="Produção / Cozinha" subtitle="Comandas geradas automaticamente pelas vendas de produtos configurados como produção sob demanda." activePath="/dashboard/estoque/producao"><ProductionWorkspace initial={orders.data}/></AdvancedShell>;
   }
   if (slug === 'vendas/nova') return <AdvancedShell title="Nova Venda PDV" subtitle="Preço resolvido no servidor, baixa de estoque, pagamento, caixa e financeiro em uma única operação." activePath="/dashboard"><SaleWorkspace customers={customers.data} priceTables={priceTables.data}/></AdvancedShell>;
   if (slug === 'perfis-pdv') return <AdvancedShell title="Perfis de Usuário PDV" subtitle="Alçadas e permissões sincronizadas com os operadores do ThorPDV Desktop." activePath="/dashboard/perfis-pdv"><PdvProfileWorkspace initialProfiles={profilesPdv.data}/></AdvancedShell>;
