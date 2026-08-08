@@ -21,7 +21,13 @@ class Store {
   migrate() {
     this.db.exec(`
       create table if not exists settings(key text primary key,value text);
-      create table if not exists products(id text primary key,sku text,name text not null,unit text,group_id text,sale_price real not null default 0,active integer not null default 1,barcodes text not null default '[]',updated_at text);
+      create table if not exists products(
+        id text primary key,sku text,name text not null,unit text,group_id text,sale_price real not null default 0,
+        active integer not null default 1,barcodes text not null default '[]',updated_at text,
+        production_mode text not null default 'stock',production_printer text not null default '',production_sector text not null default '',
+        production_description text not null default '',auto_print_production integer not null default 1,production_yield real not null default 1,
+        production_composition text not null default '[]'
+      );
       create index if not exists idx_products_name on products(name);
       create table if not exists inventory(product_id text primary key,quantity real not null default 0,reserved_quantity real not null default 0,updated_at text);
       create table if not exists price_items(product_id text primary key,price real not null);
@@ -37,6 +43,17 @@ class Store {
       create index if not exists idx_server_sales_number on server_sales(number);
       create index if not exists idx_server_sales_event on server_sales(client_event_id);
     `);
+
+    // Migração incremental para instalações anteriores sem apagar o SQLite do caixa.
+    const cols = new Set(this.db.prepare('pragma table_info(products)').all().map((x) => x.name));
+    const add = (name, definition) => { if (!cols.has(name)) this.db.exec(`alter table products add column ${name} ${definition}`); };
+    add('production_mode', "text not null default 'stock'");
+    add('production_printer', "text not null default ''");
+    add('production_sector', "text not null default ''");
+    add('production_description', "text not null default ''");
+    add('auto_print_production', 'integer not null default 1');
+    add('production_yield', 'real not null default 1');
+    add('production_composition', "text not null default '[]'");
   }
 
   close() { this.db.close(); }
@@ -64,9 +81,37 @@ class Store {
 
   applyPull(data) {
     const tx = this.db.transaction(() => {
-      const productStmt = this.db.prepare(`insert into products(id,sku,name,unit,group_id,sale_price,active,barcodes,updated_at) values(@id,@sku,@name,@unit,@group_id,@sale_price,@active,@barcodes,@updated_at)
-        on conflict(id) do update set sku=excluded.sku,name=excluded.name,unit=excluded.unit,group_id=excluded.group_id,sale_price=excluded.sale_price,active=excluded.active,barcodes=excluded.barcodes,updated_at=excluded.updated_at`);
-      for (const p of data.products || []) productStmt.run({ id:p.id, sku:p.sku || '', name:p.name, unit:p.unit || 'UN', group_id:p.group_id || '', sale_price:Number(p.sale_price||0), active:p.active===false?0:1, barcodes:JSON.stringify(p.barcodes||[]), updated_at:p.updated_at||'' });
+      const productStmt = this.db.prepare(`insert into products(
+          id,sku,name,unit,group_id,sale_price,active,barcodes,updated_at,
+          production_mode,production_printer,production_sector,production_description,auto_print_production,production_yield,production_composition
+        ) values(
+          @id,@sku,@name,@unit,@group_id,@sale_price,@active,@barcodes,@updated_at,
+          @production_mode,@production_printer,@production_sector,@production_description,@auto_print_production,@production_yield,@production_composition
+        )
+        on conflict(id) do update set
+          sku=excluded.sku,name=excluded.name,unit=excluded.unit,group_id=excluded.group_id,sale_price=excluded.sale_price,
+          active=excluded.active,barcodes=excluded.barcodes,updated_at=excluded.updated_at,
+          production_mode=excluded.production_mode,production_printer=excluded.production_printer,production_sector=excluded.production_sector,
+          production_description=excluded.production_description,auto_print_production=excluded.auto_print_production,
+          production_yield=excluded.production_yield,production_composition=excluded.production_composition`);
+      for (const p of data.products || []) productStmt.run({
+        id:p.id,
+        sku:p.sku || '',
+        name:p.name,
+        unit:p.unit || 'UN',
+        group_id:p.group_id || '',
+        sale_price:Number(p.sale_price||0),
+        active:p.active===false?0:1,
+        barcodes:JSON.stringify(p.barcodes||[]),
+        updated_at:p.updated_at||'',
+        production_mode:String(p.production_mode||'stock'),
+        production_printer:String(p.production_printer||''),
+        production_sector:String(p.production_sector||''),
+        production_description:String(p.production_description||''),
+        auto_print_production:p.auto_print_production===false?0:1,
+        production_yield:Number(p.production_yield||1),
+        production_composition:JSON.stringify(p.composition||[]),
+      });
       const stockStmt = this.db.prepare(`insert into inventory(product_id,quantity,reserved_quantity,updated_at) values(@product_id,@quantity,@reserved_quantity,@updated_at)
         on conflict(product_id) do update set quantity=excluded.quantity,reserved_quantity=excluded.reserved_quantity,updated_at=excluded.updated_at`);
       for (const i of data.inventory || []) stockStmt.run({ product_id:i.product_id, quantity:Number(i.quantity||0), reserved_quantity:Number(i.reserved_quantity||0), updated_at:i.updated_at||'' });
